@@ -1,0 +1,514 @@
+"use client";
+
+import { useEffect, useState, use, useMemo, useRef } from "react";
+import { format } from "date-fns";
+import { collection, addDoc, onSnapshot, query, doc, deleteDoc, updateDoc, getDoc } from "firebase/firestore";
+import { db, auth } from "../../../lib/firebase";
+import Link from "next/link";
+import { User } from "firebase/auth";
+
+// FULLCALENDAR IMPORTS
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import deLocale from '@fullcalendar/core/locales/de';
+
+interface Reservation {
+  id?: string;
+  title: string;
+  userName: string;
+  start: Date;
+  end: Date;
+  userId: string;
+  allDay?: boolean;
+}
+
+export default function CalendarPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const calendarRef = useRef<FullCalendar>(null);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [carName, setCarName] = useState("Lade...");
+  const [events, setEvents] = useState<Reservation[]>([]);
+  const [userProfiles, setUserProfiles] = useState<Record<string, {displayName: string, color: string}>>({});
+
+  // Toolbar & View States
+  const [calendarTitle, setCalendarTitle] = useState("");
+  const [currentView, setCurrentView] = useState("timeGridThreeDay");
+
+  // Modal States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Reservation | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [isAllDay, setIsAllDay] = useState(false);
+
+  // Startdatum für die 3-Tage-Ansicht ("Gestern")
+  const initialDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d;
+  }, []);
+
+  useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged(async (u) => {
+      if (!u) {
+        window.location.href = "/";
+      } else {
+        setUser(u);
+        const carDoc = await getDoc(doc(db, "cars", resolvedParams.id));
+        if (carDoc.exists()) {
+          setCarName(carDoc.data().name || "Auto");
+          const members = carDoc.data().members || [];
+          if (!members.includes(u.uid)) {
+            alert("Du bist kein Mitglied dieses Teams.");
+            window.location.href = "/";
+          }
+        } else {
+          window.location.href = "/";
+        }
+      }
+    });
+    return () => unsubscribeAuth();
+  }, [resolvedParams.id]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
+      const profiles: any = {};
+      snapshot.docs.forEach(doc => { profiles[doc.id] = doc.data(); });
+      setUserProfiles(profiles);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "cars", resolvedParams.id, "reservations"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedEvents = snapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title || "Fahrt",
+        userName: doc.data().userName || "Unbekannt",
+        start: doc.data().start.toDate(), 
+        end: doc.data().end.toDate(),
+        userId: doc.data().userId,
+        allDay: doc.data().allDay || false
+      }));
+      setEvents(loadedEvents);
+    });
+    return () => unsubscribe();
+  }, [resolvedParams.id]);
+
+  // FullCalendar Events Mapping
+  const mappedEvents = events.map(e => ({
+    id: e.id,
+    title: e.title,
+    start: e.start,
+    end: e.end,
+    allDay: e.allDay,
+    backgroundColor: userProfiles[e.userId]?.color || '#3b82f6',
+    extendedProps: {
+      userId: e.userId,
+      userName: e.userName
+    }
+  }));
+
+  // Custom Toolbar Logic
+  const goToBack = () => calendarRef.current?.getApi().prev();
+  const goToNext = () => calendarRef.current?.getApi().next();
+  const goToToday = () => {
+    const api = calendarRef.current?.getApi();
+    if (currentView === 'timeGridThreeDay') {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      api?.gotoDate(yesterday);
+    } else {
+      api?.today();
+    }
+  };
+
+  const changeView = (viewName: string) => {
+    calendarRef.current?.getApi().changeView(viewName);
+    setCurrentView(viewName);
+  };
+
+  // FullCalendar Handler
+  const handleSelectSlot = (selectInfo: any) => {
+    if (!user) return;
+    const start = selectInfo.start;
+    const end = selectInfo.end;
+    
+    setEditingEvent(null);
+    setNewTitle("");
+    setStartDate(format(start, "yyyy-MM-dd"));
+    setStartTime(format(start, "HH:mm"));
+    setIsAllDay(selectInfo.allDay);
+    
+    if (start.getTime() === end.getTime() || (end.getTime() - start.getTime() < 60000)) {
+      const defaultEnd = new Date(start.getTime() + 60 * 60 * 1000);
+      setEndDate(format(defaultEnd, "yyyy-MM-dd"));
+      setEndTime(format(defaultEnd, "HH:mm"));
+    } else {
+      setEndDate(format(end, "yyyy-MM-dd"));
+      setEndTime(format(end, "HH:mm"));
+    }
+    setIsModalOpen(true);
+    calendarRef.current?.getApi().unselect();
+  };
+
+  const handleSelectEvent = (clickInfo: any) => {
+    const ev = clickInfo.event;
+    setEditingEvent({
+      id: ev.id,
+      title: ev.title,
+      start: ev.start,
+      end: ev.end,
+      userId: ev.extendedProps.userId,
+      userName: ev.extendedProps.userName,
+      allDay: ev.allDay
+    });
+    setNewTitle(ev.title);
+    setIsAllDay(ev.allDay);
+    setStartDate(format(ev.start, "yyyy-MM-dd"));
+    setStartTime(format(ev.start, "HH:mm"));
+    
+    if (ev.end) {
+       const endDate = ev.allDay ? new Date(ev.end.getTime() - 1000) : ev.end;
+       setEndDate(format(endDate, "yyyy-MM-dd"));
+       setEndTime(format(endDate, "HH:mm"));
+    } else {
+       setEndDate(format(ev.start, "yyyy-MM-dd"));
+       setEndTime(format(ev.start, "HH:mm"));
+    }
+
+    setIsModalOpen(true);
+  };
+
+  const handleModalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || (editingEvent?.userId && editingEvent.userId !== user.uid)) return;
+    const start = new Date(`${startDate}T${startTime}`);
+    let end = new Date(`${endDate}T${endTime}`);
+    
+    if (isAllDay) {
+        start.setHours(0,0,0,0);
+        end = new Date(endDate);
+        end.setDate(end.getDate() + 1);
+        end.setHours(0,0,0,0);
+    } else {
+        if (end <= start) { alert("Ende muss nach Beginn liegen!"); return; }
+    }
+
+    const currentName = userProfiles[user.uid]?.displayName || user.displayName || "Unbekannt";
+
+    try {
+      if (editingEvent?.id) {
+        await updateDoc(doc(db, "cars", resolvedParams.id, "reservations", editingEvent.id), { 
+            title: newTitle || "Fahrt", start, end, allDay: isAllDay 
+        });
+      } else {
+        await addDoc(collection(db, "cars", resolvedParams.id, "reservations"), { 
+            title: newTitle || "Fahrt", userName: currentName, start, end, userId: user.uid, allDay: isAllDay 
+        });
+      }
+      setIsModalOpen(false);
+    } catch (error) { console.error(error); }
+  };
+
+  const handleDelete = async () => {
+    if (!editingEvent?.id || !user || editingEvent.userId !== user.uid) return;
+    if (window.confirm("Reservierung löschen?")) {
+      await deleteDoc(doc(db, "cars", resolvedParams.id, "reservations", editingEvent.id));
+      setIsModalOpen(false);
+    }
+  };
+
+  const isOwner = editingEvent ? editingEvent.userId === user?.uid : true;
+
+  if (!user) return null;
+
+  return (
+    <main className="flex min-h-screen flex-col items-center p-4 bg-gray-50 overflow-hidden text-black">
+      <style>{`
+        .fc { font-family: inherit; }
+        .fc-theme-standard th { border: none !important; padding: 8px 0; }
+        
+        /* FIX: Entfernt den Rahmen um das Kalender-Gitter, passend zum Log-Style */
+        .fc-scrollgrid { border-radius: 12px; overflow: hidden; border: none !important; }
+        
+        .fc-timegrid-now-indicator-line { border-color: #ef4444; border-width: 2px; }
+        .fc-timegrid-now-indicator-arrow { border-color: #ef4444; border-width: 5px; margin-top: -5px; }
+        
+        /* Event Styling TimeGrid */
+        .fc-timegrid-event {
+          border-radius: 6px !important;
+          border: none !important;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+          overflow: visible !important;
+          z-index: 10 !important;
+        }
+
+        .fc-v-event .fc-event-main-frame {
+           overflow: visible !important;
+        }
+        
+        /* Event Styling MonthView & AllDay (Wieder farbige Blöcke, damit mehrtägige Termine durchgehend sind) */
+        .fc-daygrid-event {
+          border-radius: 4px !important;
+          border: none !important;
+          padding: 2px;
+          margin-bottom: 2px !important;
+        }
+        .fc-daygrid-event:hover {
+          filter: brightness(0.9);
+        }
+
+        .fc-col-header-cell-cushion, 
+        .fc-timegrid-slot-label-cushion {
+          color: #000000 !important;
+          font-weight: 900 !important;
+          text-transform: uppercase;
+        }
+
+        .fc-timegrid-axis-cushion {
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+        
+        input[type="date"], input[type="time"], input[type="text"] {
+          color: #000000 !important;
+          -webkit-text-fill-color: #000000 !important;
+          opacity: 1 !important;
+        }
+      `}</style>
+
+      {/* FIX: Die weißen Karten-Styles (bg-white, shadow-lg, border) wurden entfernt, w-full bleibt für volle Breite */}
+      <div className="w-full max-w-4xl pb-24">
+        
+        {/* HEADER MIT ZURÜCK UND TITEL RECHTS */}
+        <div className="flex justify-between items-center mb-6">
+          <Link href={`/`} className="bg-white p-3 px-5 rounded-2xl shadow-sm text-gray-700 font-bold text-sm active:scale-90 transition uppercase">
+            Zurück
+          </Link>
+          <h1 className="text-xl font-black italic uppercase text-gray-800 tracking-tighter">
+            {carName}
+          </h1>
+        </div>
+
+        {/* CUSTOM TOOLBAR */}
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="flex justify-between items-center bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
+            <button onClick={goToBack} className="p-3 px-5 text-gray-700 active:bg-gray-100 rounded-xl transition flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+
+            <span onClick={goToToday} className="font-black text-black text-sm uppercase tracking-tight cursor-pointer active:opacity-50 text-center flex-1 italic">
+              {calendarTitle}
+            </span>
+
+            <button onClick={goToNext} className="p-3 px-5 text-gray-700 active:bg-gray-100 rounded-xl transition flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100">
+            {[
+              { id: 'dayGridMonth', label: 'Monat' },
+              { id: 'timeGridThreeDay', label: '3 Tage' },
+              { id: 'timeGridDay', label: 'Tag' }
+            ].map((v) => (
+              <button 
+                key={v.id} 
+                onClick={() => changeView(v.id)} 
+                className={`flex-1 py-2 text-xs font-black uppercase tracking-tighter rounded-lg transition ${
+                  currentView === v.id ? 'bg-gray-100 shadow-inner text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* KALENDER */}
+        <div className="h-[65vh] bg-white p-2 rounded-3xl shadow-sm border border-gray-100">
+          <FullCalendar
+            ref={calendarRef}
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            initialView="timeGridThreeDay"
+            initialDate={initialDate}
+            locales={[deLocale]}
+            locale="de"
+            headerToolbar={false}
+            datesSet={(arg) => setCalendarTitle(arg.view.title)}
+            events={mappedEvents}
+            selectable={true}
+            selectMirror={true}
+            select={handleSelectSlot}
+            eventClick={handleSelectEvent}
+            allDaySlot={true}
+            allDayText="Ganz."
+            nowIndicator={true}
+            height="100%"
+            slotMinTime="00:00:00"
+            slotLabelFormat={{ hour: '2-digit', minute: '2-digit' }}
+            eventTimeFormat={{ hour: '2-digit', minute: '2-digit' }}
+            selectLongPressDelay={150} 
+            eventLongPressDelay={150}
+            eventDisplay="block" 
+
+            eventContent={(arg) => {
+              const isMonthView = arg.view.type === 'dayGridMonth';
+
+              if (isMonthView) {
+                return (
+                  <div className="flex flex-col overflow-hidden text-[10px] leading-tight text-white w-full p-0.5">
+                    {arg.timeText && <span className="font-bold">{arg.timeText}</span>}
+                    <span className="font-black truncate">{arg.event.title}</span>
+                    <span className="font-medium truncate opacity-90">{arg.event.extendedProps.userName}</span>
+                  </div>
+                );
+              }
+              
+              if (arg.event.allDay) {
+                 return (
+                  <div className="flex items-center overflow-hidden text-white w-full px-1 py-0.5" style={{backgroundColor: arg.event.backgroundColor}}>
+                    <span className="font-black text-xs truncate ml-1">{arg.event.title} - {arg.event.extendedProps.userName}</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex flex-col p-1.5 overflow-visible text-white drop-shadow-md">
+                  <span className="font-bold text-xs leading-tight drop-shadow-sm">{arg.timeText}</span>
+                  <span className="font-black text-sm leading-tight truncate mt-0.5 drop-shadow-sm">{arg.event.title}</span>
+                  <span className="font-medium text-xs opacity-95 truncate mt-0.5 drop-shadow-sm">{arg.event.extendedProps.userName}</span>
+                </div>
+              );
+            }}
+
+            views={{
+              timeGridThreeDay: {
+                type: 'timeGrid',
+                duration: { days: 3 },
+                buttonText: '3 Tage'
+              }
+            }}
+          />
+        </div>
+      </div>
+
+      {/* TAB BAR */}
+      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-t border-gray-200 flex items-stretch z-50 px-6 pb-safe text-center">
+        <Link href={`/${resolvedParams.id}/log`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400">
+          <div className="w-6 h-6 flex items-center justify-center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Fahrten</span>
+        </Link>
+        <div className="flex-1 flex flex-col items-center justify-center gap-1 text-blue-600">
+          <div className="w-6 h-6 flex items-center justify-center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest">Kalender</span>
+        </div>
+      </nav>
+
+      {/* MODAL BEARBEITEN/DETAILS */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white p-6 rounded-[2rem] shadow-2xl w-full max-w-sm border border-gray-100 text-black">
+            <h2 className="text-xl font-black mb-6 text-center italic uppercase tracking-tighter">
+              {editingEvent ? "Detail" : "Reservieren"}
+            </h2>
+            <form onSubmit={handleModalSubmit} className="flex flex-col gap-4">
+              
+              {/* Modernes Floating Label für den Grund/Titel */}
+              {isOwner ? (
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    id="floating_title"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    className="peer block w-full appearance-none rounded-xl border border-gray-100 bg-gray-100 px-3 pb-2 pt-6 text-sm font-black text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                    placeholder=" "
+                  />
+                  <label
+                    htmlFor="floating_title"
+                    className="absolute left-3 top-4 z-10 origin-[0] -translate-y-3 scale-75 transform text-xs font-bold uppercase text-gray-400 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-3 peer-focus:scale-75 peer-focus:text-blue-600 cursor-text pointer-events-none"
+                  >
+                    Titel
+                  </label>
+                </div>
+              ) : (
+                <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-100">
+                  <span className="text-gray-400 font-bold text-xs uppercase">Titel</span>
+                  <span className="font-black text-black text-sm">{newTitle}</span>
+                </div>
+              )}
+
+              <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-100">
+                <span className="text-gray-400 font-bold text-xs uppercase">Benutzer</span>
+                <span className="font-black text-black text-sm">
+                  {editingEvent ? editingEvent.userName : (userProfiles[user?.uid || ""]?.displayName || user?.displayName)}
+                </span>
+              </div>
+              
+              {isOwner && (
+                <div className="flex items-center gap-2 px-2">
+                    <input type="checkbox" id="allDay" checked={isAllDay} onChange={(e) => setIsAllDay(e.target.checked)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"/>
+                    <label htmlFor="allDay" className="text-sm font-bold text-gray-700">Ganztägig</label>
+                </div>
+              )}
+
+              <div className="bg-gray-100 p-4 rounded-xl flex flex-col gap-4 border border-gray-100">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 font-bold text-xs uppercase">Beginn</span>
+                  {isOwner ? (
+                    <div className="flex gap-1">
+                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-white border border-gray-200 p-2 rounded-xl text-sm font-black" />
+                      {!isAllDay && <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="bg-white border border-gray-200 p-2 rounded-xl text-sm font-black" />}
+                    </div>
+                  ) : (
+                    <div className="text-right font-black text-sm leading-tight">
+                      <div className="text-black">{startDate && format(new Date(`${startDate}T${startTime}`), "dd.MM.yy")}</div>
+                      {!isAllDay && <div className="text-blue-600">{startTime}</div>}
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 font-bold text-xs uppercase">Ende</span>
+                  {isOwner ? (
+                    <div className="flex gap-1">
+                      <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-white border border-gray-200 p-2 rounded-xl text-sm font-black" />
+                      {!isAllDay && <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="bg-white border border-gray-200 p-2 rounded-xl text-sm font-black" />}
+                    </div>
+                  ) : (
+                    <div className="text-right font-black text-sm leading-tight">
+                      <div className="text-black">{endDate && format(new Date(`${endDate}T${endTime}`), "dd.MM.yy")}</div>
+                      {!isAllDay && <div className="text-blue-600">{endTime}</div>}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 mt-4">
+                {isOwner && <button type="submit" className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase italic active:scale-95 transition text-sm">Speichern</button>}
+                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full bg-gray-200 text-gray-700 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 transition">Schließen</button>
+                {isOwner && editingEvent && <button type="button" onClick={handleDelete} className="w-full bg-red-50 text-red-500 font-bold py-3 rounded-xl uppercase text-xs mt-2 border-none">Löschen</button>}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
