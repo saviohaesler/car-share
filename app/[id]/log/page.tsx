@@ -27,11 +27,17 @@ interface DriveLog {
   fuelDetails?: FuelDetail[];
 }
 
+const formatKm = (km: number | string | undefined) => {
+  if (km === undefined || km === null) return '?';
+  return km.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+};
+
 export default function DriveLogPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<{displayName: string, color: string} | null>(null);
   const [carName, setCarName] = useState("Lade...");
+  const [initialKm, setInitialKm] = useState<number>(0);
   const [logs, setLogs] = useState<DriveLog[]>([]);
   
   const [startKm, setStartKm] = useState("");
@@ -52,14 +58,49 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
   };
 
   const getMaxKm = () => {
-    if (logs.length === 0) return 0;
+    if (logs.length === 0) return initialKm; 
     return Math.max(...logs.map(l => l.km));
+  };
+
+  // NEU: Logik für die Erfassen-Buttons
+  const decrementStartKm = () => {
+    const currentMin = getMaxKm();
+    const currentVal = Number(startKm);
+    if (currentVal > currentMin) {
+        updateStartKm(String(currentVal - 1));
+    }
+  };
+
+  const decrementEndKm = () => {
+    const minEnd = Number(startKm);
+    const currentVal = Number(endKm);
+    if (currentVal > minEnd) {
+        setEndKm(String(currentVal - 1));
+    }
   };
 
   const updateStartKm = (val: string) => {
     setStartKm(val);
     if (Number(endKm) < Number(val)) {
       setEndKm(val);
+    }
+  };
+
+  // NEU: Logik für die Edit-Buttons
+  const decrementEditStartKm = () => {
+    // Im Edit-Modus ist es schwieriger zu wissen, was das absolute Minimum ist (abhängig vom vorherigen Log)
+    // Zur Sicherheit lassen wir es nicht unter initialKm fallen
+    const currentVal = Number(editStartKm);
+    if (currentVal > initialKm) {
+        updateEditStartKm(String(currentVal - 1));
+    }
+  };
+
+  const decrementEditEndKm = () => {
+    const minEnd = Number(editStartKm);
+    const currentVal = Number(editEndKm);
+    if (currentVal > minEnd) {
+        setEditEndKm(String(currentVal - 1));
     }
   };
 
@@ -89,30 +130,44 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
   }, []);
 
   useEffect(() => {
-    const fetchCar = async () => {
+    let unsubscribeLogs: () => void;
+
+    const loadData = async () => {
+      let initKm = 0;
+      
       try {
         const docSnap = await getDoc(doc(db, "cars", resolvedParams.id));
-        if (docSnap.exists()) setCarName(docSnap.data().name);
+        if (docSnap.exists()) {
+          setCarName(docSnap.data().name);
+          initKm = docSnap.data().initialKm || 0;
+          setInitialKm(initKm);
+        }
       } catch (error) { console.error(error); }
-    };
-    fetchCar();
 
-    const q = query(collection(db, "cars", resolvedParams.id, "logs"), orderBy("timestamp", "desc"));
-    return onSnapshot(q, (snapshot) => {
-      const fetchedLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as DriveLog));
-      setLogs(fetchedLogs);
-      
-      if (fetchedLogs.length > 0) {
-          const lastDrive = fetchedLogs.find(l => l.km);
-          if (lastDrive) {
-              const lastVal = lastDrive.km.toString();
-              if (startKm === "") {
-                setStartKm(lastVal);
-                setEndKm(lastVal);
-              }
-          }
-      }
-    });
+      const q = query(collection(db, "cars", resolvedParams.id, "logs"), orderBy("timestamp", "desc"));
+      unsubscribeLogs = onSnapshot(q, (snapshot) => {
+        const fetchedLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as DriveLog));
+        setLogs(fetchedLogs);
+        
+        if (fetchedLogs.length > 0) {
+            const lastDrive = fetchedLogs.find(l => l.km);
+            if (lastDrive) {
+                const lastVal = lastDrive.km.toString();
+                setStartKm(prev => prev === "" ? lastVal : prev);
+                setEndKm(prev => prev === "" ? lastVal : prev);
+            }
+        } else {
+            setStartKm(prev => prev === "" ? initKm.toString() : prev);
+            setEndKm(prev => prev === "" ? initKm.toString() : prev);
+        }
+      });
+    };
+
+    loadData();
+
+    return () => {
+      if (unsubscribeLogs) unsubscribeLogs();
+    };
   }, [resolvedParams.id]);
 
   const handleEditClick = (log: DriveLog) => {
@@ -131,7 +186,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     const eKm = Math.floor(Number(endKm));
 
     if (sKm < currentMax) {
-        return alert(`Der Start-KM Stand (${sKm}) darf nicht kleiner sein als der bisherige Höchststand von ${currentMax} km.`);
+        return alert(`Der Start-KM Stand (${formatKm(sKm)}) darf nicht kleiner sein als der bisherige Höchststand von ${formatKm(currentMax)} km.`);
     }
     if (eKm < sKm) {
         return alert("Der End-KM Stand muss höher oder gleich dem Start-KM sein!");
@@ -164,7 +219,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     const relevantLogs = (lastFuelIndex === -1 ? logs : logs.slice(0, lastFuelIndex)).reverse();
     
     const userStats: { [key: string]: { name: string, totalDist: number, color: string } } = {};
-    let lastKnownKm = lastFuelIndex !== -1 ? logs[lastFuelIndex].km : (relevantLogs.length > 0 ? relevantLogs[0].startKm || relevantLogs[0].km : 0);
+    let lastKnownKm = lastFuelIndex !== -1 ? logs[lastFuelIndex].km : (relevantLogs.length > 0 ? relevantLogs[0].startKm || relevantLogs[0].km : initialKm);
     let gapDist = 0;
 
     relevantLogs.forEach(log => {
@@ -284,7 +339,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                 <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-gray-400 ml-2 uppercase">Start KM</label>
                     <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => updateStartKm(String(Math.max(0, Number(startKm) - 1)))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">-</button>
+                        {/* NEU: Disabled style wenn am Limit */}
+                        <button type="button" onClick={decrementStartKm} disabled={Number(startKm) <= getMaxKm()} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm disabled:opacity-50 disabled:active:bg-gray-100 transition-opacity">-</button>
                         <input type="number" step="1" value={startKm} onChange={(e) => updateStartKm(e.target.value)} className="bg-gray-50 h-10 flex-1 rounded-xl font-black text-center outline-none border border-gray-100 focus:border-green-500 transition no-spinner text-sm" required />
                         <button type="button" onClick={() => updateStartKm(String(Number(startKm) + 1))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">+</button>
                     </div>
@@ -292,7 +348,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                 <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-gray-400 ml-2 uppercase">Ende KM</label>
                     <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => setEndKm(String(Math.max(Number(startKm), Number(endKm) - 1)))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">-</button>
+                         {/* NEU: Disabled style wenn am Limit */}
+                        <button type="button" onClick={decrementEndKm} disabled={Number(endKm) <= Number(startKm)} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm disabled:opacity-50 disabled:active:bg-gray-100 transition-opacity">-</button>
                         <input type="number" step="1" value={endKm} onChange={(e) => setEndKm(e.target.value)} className="bg-gray-50 h-10 flex-1 rounded-xl font-black text-center outline-none border border-gray-100 focus:border-green-500 transition no-spinner text-sm" required />
                         <button type="button" onClick={() => setEndKm(String(Number(endKm) + 1))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">+</button>
                     </div>
@@ -308,26 +365,34 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         <div className="flex flex-col flex-1 overflow-hidden">
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-4 mb-4 shrink-0 text-left">Historie</h2>
             <div className="flex flex-col gap-4 overflow-y-auto pb-6 px-1 custom-scrollbar flex-1">
-                {logs.map((log) => {
-                    const diff = log.km - (log.startKm ?? log.km);
-                    return (
-                        <div key={log.id} onClick={() => handleEditClick(log)} className={`p-5 pl-6 rounded-3xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer active:scale-95 transition relative overflow-hidden shrink-0 ${log.type === 'fuel' ? 'bg-orange-50 border-orange-200' : 'bg-white'}`}>
-                            <div className="absolute left-0 top-0 bottom-0 w-2.5" style={{ backgroundColor: log.type === 'fuel' ? '#f97316' : (log.userColor || "#ccc") }} />
-                            <div className="flex flex-col text-left">
-                                <span className="font-black text-gray-800 text-lg leading-tight">
-                                    {log.type === 'fuel' ? `GETANKT` : `${log.startKm ?? '?'} → ${log.km.toLocaleString()} km`}
-                                </span>
-                                {log.type !== 'fuel' && <span className="text-[10px] font-black text-green-600 uppercase tracking-tighter">+ {diff} km gefahren</span>}
-                                {log.type === 'fuel' && <span className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">bei {log.km.toLocaleString()} km</span>}
-                                <span className="text-[10px] font-bold text-gray-400 uppercase mt-1">{log.userName}</span>
-                            </div>
-                            <div className="text-right flex flex-col items-end shrink-0">
-                                <span className="text-[11px] font-black text-gray-400 uppercase">{log.timestamp?.toDate().toLocaleDateString('de-DE')}</span>
-                                {log.type === 'fuel' && <span className="bg-orange-500 text-white text-[10px] px-2 py-1 rounded-lg mt-1 font-black">{log.fuelAmount}.-</span>}
-                            </div>
-                        </div>
-                    );
-                })}
+                
+                {logs.length === 0 ? (
+                  <div className="bg-white p-6 rounded-3xl border border-gray-100 text-center shadow-sm shrink-0">
+                    <p className="text-sm font-black text-gray-400 italic uppercase">Noch keine Fahrten</p>
+                    <p className="text-[10px] font-bold text-gray-300 uppercase mt-1">Startwert: {formatKm(initialKm)} km</p>
+                  </div>
+                ) : (
+                  logs.map((log) => {
+                      const diff = log.km - (log.startKm ?? log.km);
+                      return (
+                          <div key={log.id} onClick={() => handleEditClick(log)} className={`p-5 pl-6 rounded-3xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer active:scale-95 transition relative overflow-hidden shrink-0 ${log.type === 'fuel' ? 'bg-orange-50 border-orange-200' : 'bg-white'}`}>
+                              <div className="absolute left-0 top-0 bottom-0 w-2.5" style={{ backgroundColor: log.type === 'fuel' ? '#f97316' : (log.userColor || "#ccc") }} />
+                              <div className="flex flex-col text-left">
+                                  <span className="font-black text-gray-800 text-lg leading-tight">
+                                      {log.type === 'fuel' ? `GETANKT` : `${formatKm(log.startKm)} → ${formatKm(log.km)} km`}
+                                  </span>
+                                  {log.type !== 'fuel' && <span className="text-[10px] font-black text-green-600 uppercase tracking-tighter">+ {formatKm(diff)} km gefahren</span>}
+                                  {log.type === 'fuel' && <span className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">bei {formatKm(log.km)} km</span>}
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase mt-1">{log.userName}</span>
+                              </div>
+                              <div className="text-right flex flex-col items-end shrink-0">
+                                  <span className="text-[11px] font-black text-gray-400 uppercase">{log.timestamp?.toDate().toLocaleDateString('de-DE')}</span>
+                                  {log.type === 'fuel' && <span className="bg-orange-500 text-white text-[10px] px-2 py-1 rounded-lg mt-1 font-black">{log.fuelAmount}.-</span>}
+                              </div>
+                          </div>
+                      );
+                  })
+                )}
             </div>
         </div>
 
@@ -352,7 +417,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }}></div>
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-gray-700">{s.name}</span>
-                                                <span className="text-[10px] text-gray-500 font-bold">{s.dist} km</span>
+                                                <span className="text-[10px] text-gray-500 font-bold">{formatKm(s.dist)} km</span>
                                             </div>
                                         </div>
                                         <span className={`font-black ${s.debt > 0 ? 'text-green-700' : 'text-gray-400'}`}>
@@ -400,7 +465,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }}></div>
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-gray-800 text-sm">{s.name}</span>
-                                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{s.dist} km</span>
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{formatKm(s.dist)} km</span>
                                                         </div>
                                                     </div>
                                                     <span className={`font-black ${s.debt > 0 ? 'text-green-600' : 'text-gray-400'} text-sm`}>
@@ -418,7 +483,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                     <div className="flex flex-col gap-1 text-left">
                                         <label className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Start KM</label>
                                         <div className="flex items-center gap-2">
-                                            <button type="button" onClick={() => updateEditStartKm(String(Math.max(0, Number(editStartKm) - 1)))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">-</button>
+                                            {/* NEU: Disabled style wenn am Limit */}
+                                            <button type="button" onClick={decrementEditStartKm} disabled={Number(editStartKm) <= initialKm} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm disabled:opacity-50 disabled:active:bg-gray-100 transition-opacity">-</button>
                                             <input type="number" step="1" value={editStartKm} onChange={(e) => updateEditStartKm(e.target.value)} className="bg-gray-50 h-10 flex-1 rounded-xl font-black text-center outline-none border border-gray-100 focus:border-green-500 transition no-spinner text-sm" required />
                                             <button type="button" onClick={() => updateEditStartKm(String(Number(editStartKm) + 1))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">+</button>
                                         </div>
@@ -426,17 +492,18 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                     <div className="flex flex-col gap-1 text-left">
                                         <label className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Ende KM</label>
                                         <div className="flex items-center gap-2">
-                                            <button type="button" onClick={() => setEditEndKm(String(Math.max(Number(editStartKm), Number(editEndKm) - 1)))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">-</button>
+                                            {/* NEU: Disabled style wenn am Limit */}
+                                            <button type="button" onClick={decrementEditEndKm} disabled={Number(editEndKm) <= Number(editStartKm)} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm disabled:opacity-50 disabled:active:bg-gray-100 transition-opacity">-</button>
                                             <input type="number" step="1" value={editEndKm} onChange={(e) => setEditEndKm(e.target.value)} className="bg-gray-50 h-10 flex-1 rounded-xl font-black text-center outline-none border border-gray-100 focus:border-green-500 transition no-spinner text-sm" required />
-                                            <button type="button" onClick={() => setEditEndKm(String(Number(editEndKm) + 1))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">+</button>
+                                            <button type="button" onClick={() => setEndKm(String(Number(editEndKm) + 1))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">+</button>
                                         </div>
                                     </div>
                                     <button onClick={handleUpdateLog} className="w-full bg-green-500 text-white font-black py-4 rounded-2xl uppercase italic shadow-lg active:scale-95 transition">Speichern</button>
                                 </div>
                             ) : (
                                 <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 text-center">
-                                    <p className="text-2xl font-black italic">{editingLog.startKm} → {editingLog.km} km</p>
-                                    <p className="text-xs font-bold text-green-500 uppercase mt-1">{(editingLog.km - (editingLog.startKm ?? editingLog.km))} km gefahren</p>
+                                    <p className="text-2xl font-black italic">{formatKm(editingLog.startKm)} → {formatKm(editingLog.km)} km</p>
+                                    <p className="text-xs font-bold text-green-500 uppercase mt-1">{formatKm((editingLog.km - (editingLog.startKm ?? editingLog.km)))} km gefahren</p>
                                 </div>
                             )
                         )}

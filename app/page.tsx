@@ -15,7 +15,7 @@ interface Car {
   initialKm?: number;
 }
 
-const PRESET_COLORS = ["#fbbf24", "#ef4444", "#ec4899", "#8b5cf6", "#3b82f6", "#10b981", "#34d399"];
+const PRESET_COLORS = ["#fbbf24", "#ef4444", "#ec4899", "#8b5cf6", "#3b82f6", "#10b981"];
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -118,7 +118,7 @@ export default function Home() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(inviteLink);
-        alert("Einladungslink kopiert! 📋");
+        alert("Einladungslink kopiert!");
         return;
       } catch (err) { console.error(err); }
     }
