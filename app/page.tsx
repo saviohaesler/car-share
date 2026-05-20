@@ -47,12 +47,13 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!user) return;
     return onSnapshot(collection(db, "users"), (snapshot) => {
       const profiles: any = {};
       snapshot.docs.forEach(doc => { profiles[doc.id] = doc.data(); });
       setUserProfiles(profiles);
     });
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!user) { setCars([]); return; }
@@ -134,8 +135,8 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50 relative">
-      <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl max-w-md w-full text-center border border-gray-100">
+    <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 overflow-y-auto relative">
+      <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl max-w-md w-full text-center border border-gray-100 my-auto">
         
         <div className="flex justify-between items-center mb-8 px-2">
           <div className="w-10"></div>

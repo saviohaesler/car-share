@@ -77,15 +77,17 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   }, [resolvedParams.id]);
 
   useEffect(() => {
+    if (!user) return;
     const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
       const profiles: any = {};
       snapshot.docs.forEach(doc => { profiles[doc.id] = doc.data(); });
       setUserProfiles(profiles);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (!user) return;
     const q = query(collection(db, "cars", resolvedParams.id, "reservations"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const loadedEvents = snapshot.docs.map(doc => ({
@@ -100,7 +102,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
       setEvents(loadedEvents);
     });
     return () => unsubscribe();
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, user]);
 
   // FullCalendar Events Mapping
   const mappedEvents = events.map(e => ({
@@ -138,6 +140,13 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   // FullCalendar Handler
   const handleSelectSlot = (selectInfo: any) => {
     if (!user) return;
+    
+    // Stop propagation to prevent immediate closure or double-trigger issues
+    if (selectInfo.jsEvent) {
+      selectInfo.jsEvent.stopPropagation();
+      selectInfo.jsEvent.preventDefault();
+    }
+    
     const start = selectInfo.start;
     const end = selectInfo.end;
     
@@ -147,7 +156,11 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     setStartTime(format(start, "HH:mm"));
     setIsAllDay(selectInfo.allDay);
     
-    if (start.getTime() === end.getTime() || (end.getTime() - start.getTime() < 60000)) {
+    if (selectInfo.allDay) {
+      const adjustedEnd = new Date(end.getTime() - 1000);
+      setEndDate(format(adjustedEnd, "yyyy-MM-dd"));
+      setEndTime(format(adjustedEnd, "HH:mm"));
+    } else if (start.getTime() === end.getTime() || (end.getTime() - start.getTime() < 60000)) {
       const defaultEnd = new Date(start.getTime() + 60 * 60 * 1000);
       setEndDate(format(defaultEnd, "yyyy-MM-dd"));
       setEndTime(format(defaultEnd, "HH:mm"));
@@ -156,7 +169,11 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
       setEndTime(format(end, "HH:mm"));
     }
     setIsModalOpen(true);
-    calendarRef.current?.getApi().unselect();
+    
+    // Unselect asynchronously to avoid conflicts during the event rendering cycle
+    setTimeout(() => {
+      calendarRef.current?.getApi().unselect();
+    }, 50);
   };
 
   const handleSelectEvent = (clickInfo: any) => {
@@ -194,6 +211,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     let end = new Date(`${endDate}T${endTime}`);
     
     if (isAllDay) {
+        if (endDate < startDate) { alert("Das Enddatum darf nicht vor dem Beginn liegen!"); return; }
         start.setHours(0,0,0,0);
         end = new Date(endDate);
         end.setDate(end.getDate() + 1);
@@ -231,7 +249,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   if (!user) return null;
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 bg-gray-50 overflow-hidden text-black">
+    <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 text-black overflow-hidden relative">
       <style>{`
         .fc { font-family: inherit; }
         .fc-theme-standard th { border: none !important; padding: 8px 0; }
@@ -286,7 +304,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
       `}</style>
 
       {/* FIX: Die weißen Karten-Styles (bg-white, shadow-lg, border) wurden entfernt, w-full bleibt für volle Breite */}
-      <div className="w-full max-w-4xl pb-24">
+      <div className="w-full max-w-4xl h-full flex flex-col pb-24">
         
         {/* HEADER MIT ZURÜCK UND TITEL RECHTS */}
         <div className="flex justify-between items-center mb-6">
@@ -318,7 +336,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
             </button>
           </div>
 
-          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100">
+          <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 shrink-0">
             {[
               { id: 'dayGridMonth', label: 'Monat' },
               { id: 'timeGridThreeDay', label: '3 Tage' },
@@ -327,8 +345,10 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
               <button 
                 key={v.id} 
                 onClick={() => changeView(v.id)} 
-                className={`flex-1 py-2 text-xs font-black uppercase tracking-tighter rounded-lg transition ${
-                  currentView === v.id ? 'bg-gray-100 shadow-inner text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-tighter rounded-xl transition active:scale-95 ${
+                  currentView === v.id 
+                    ? 'bg-gray-900 text-white shadow-md' 
+                    : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
                 {v.label}
@@ -419,6 +439,12 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest">Kalender</span>
         </div>
+        <Link href={`/${resolvedParams.id}/stats`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400">
+          <div className="w-6 h-6 flex items-center justify-center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Statistik</span>
+        </Link>
       </nav>
 
       {/* MODAL BEARBEITEN/DETAILS */}

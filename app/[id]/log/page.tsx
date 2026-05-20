@@ -130,6 +130,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
   }, []);
 
   useEffect(() => {
+    if (!user) return;
     let unsubscribeLogs: () => void;
 
     const loadData = async () => {
@@ -168,7 +169,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     return () => {
       if (unsubscribeLogs) unsubscribeLogs();
     };
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, user]);
 
   const handleEditClick = (log: DriveLog) => {
     setEditingLog(log);
@@ -312,8 +313,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
   if (!user) return null;
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 bg-gray-50 overflow-hidden text-black">
-      <div className="w-full max-w-md h-[100dvh] flex flex-col pb-20">
+    <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 text-black overflow-hidden relative">
+      <div className="w-full max-w-md h-full flex flex-col pb-24">
         
         {/* HEADER EXAKT WIE IM KALENDER */}
         <div className="flex justify-between items-center mb-6">
@@ -495,7 +496,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                             {/* NEU: Disabled style wenn am Limit */}
                                             <button type="button" onClick={decrementEditEndKm} disabled={Number(editEndKm) <= Number(editStartKm)} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm disabled:opacity-50 disabled:active:bg-gray-100 transition-opacity">-</button>
                                             <input type="number" step="1" value={editEndKm} onChange={(e) => setEditEndKm(e.target.value)} className="bg-gray-50 h-10 flex-1 rounded-xl font-black text-center outline-none border border-gray-100 focus:border-green-500 transition no-spinner text-sm" required />
-                                            <button type="button" onClick={() => setEndKm(String(Number(editEndKm) + 1))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">+</button>
+                                            <button type="button" onClick={() => setEditEndKm(String(Number(editEndKm) + 1))} className="bg-gray-100 h-10 w-10 rounded-xl flex items-center justify-center font-bold active:bg-gray-200 text-sm">+</button>
                                         </div>
                                     </div>
                                     <button onClick={handleUpdateLog} className="w-full bg-green-500 text-white font-black py-4 rounded-2xl uppercase italic shadow-lg active:scale-95 transition">Speichern</button>
@@ -532,6 +533,12 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             </div>
             <span className="text-[10px] font-bold uppercase tracking-widest">Kalender</span>
+          </Link>
+          <Link href={`/${resolvedParams.id}/stats`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400">
+            <div className="w-6 h-6 flex items-center justify-center">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest">Statistik</span>
           </Link>
         </nav>
       </div>
