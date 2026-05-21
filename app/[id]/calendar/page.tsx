@@ -32,6 +32,30 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   const [carName, setCarName] = useState("Lade...");
   const [events, setEvents] = useState<Reservation[]>([]);
   const [userProfiles, setUserProfiles] = useState<Record<string, {displayName: string, color: string}>>({});
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
+    setTheme(initialTheme);
+    if (initialTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+    localStorage.setItem("theme", nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
 
   // Toolbar & View States
   const [calendarTitle, setCalendarTitle] = useState("");
@@ -249,7 +273,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   if (!user) return null;
 
   return (
-    <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 text-black overflow-hidden relative">
+    <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
       <style>{`
         .fc { font-family: inherit; }
         .fc-theme-standard th { border: none !important; padding: 8px 0; }
@@ -301,6 +325,49 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
           -webkit-text-fill-color: #000000 !important;
           opacity: 1 !important;
         }
+
+        /* Dark Mode Overrides */
+        .dark .fc-col-header-cell-cushion, 
+        .dark .fc-timegrid-slot-label-cushion {
+          color: #ffffff !important;
+        }
+
+        .dark .fc-timegrid-axis-cushion {
+          color: #a1a1aa !important;
+        }
+
+        .dark .fc-theme-standard td, 
+        .dark .fc-theme-standard th {
+          border-color: #27272a !important;
+        }
+
+        .dark input[type="date"], 
+        .dark input[type="time"], 
+        .dark input[type="text"] {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+        }
+
+        .dark .fc-daygrid-day-number {
+          color: #a1a1aa !important;
+        }
+
+        .dark .fc-day-today {
+          background-color: rgba(59, 130, 246, 0.08) !important;
+        }
+
+        .dark .fc-timegrid-slot {
+          border-bottom: 1px solid #27272a !important;
+        }
+
+        .dark .fc-timegrid-slot-minor {
+          border-bottom-style: dotted !important;
+          border-bottom-color: #27272a !important;
+        }
+
+        .dark .fc-timegrid-axis {
+          border-color: #27272a !important;
+        }
       `}</style>
 
       {/* FIX: Die weißen Karten-Styles (bg-white, shadow-lg, border) wurden entfernt, w-full bleibt für volle Breite */}
@@ -308,35 +375,42 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         
         {/* HEADER MIT ZURÜCK UND TITEL RECHTS */}
         <div className="flex justify-between items-center mb-6">
-          <Link href={`/`} className="bg-white p-3 px-5 rounded-2xl shadow-sm text-gray-700 font-bold text-sm active:scale-90 transition uppercase">
+          <Link href={`/`} className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 p-3 px-5 rounded-2xl shadow-sm text-gray-700 dark:text-zinc-300 font-bold text-sm active:scale-90 transition uppercase">
             Zurück
           </Link>
-          <h1 className="text-xl font-black italic uppercase text-gray-800 tracking-tighter">
+          <h1 className="text-xl font-black italic uppercase text-gray-800 dark:text-zinc-100 tracking-tighter">
             {carName}
           </h1>
+          <button onClick={toggleTheme} className="p-2 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400 shadow-sm">
+            {theme === "light" ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line><line x1="18.36" y1="5.64" x2="19.78" y2="7.06"></line></svg>
+            )}
+          </button>
         </div>
 
         {/* CUSTOM TOOLBAR */}
         <div className="flex flex-col gap-3 mb-6">
-          <div className="flex justify-between items-center bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
-            <button onClick={goToBack} className="p-3 px-5 text-gray-700 active:bg-gray-100 rounded-xl transition flex items-center justify-center">
+          <div className="flex justify-between items-center bg-white dark:bg-zinc-900 p-1.5 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80">
+            <button onClick={goToBack} className="p-3 px-5 text-gray-700 dark:text-zinc-300 active:bg-gray-100 dark:active:bg-zinc-800 rounded-xl transition flex items-center justify-center">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </button>
 
-            <span onClick={goToToday} className="font-black text-black text-sm uppercase tracking-tight cursor-pointer active:opacity-50 text-center flex-1 italic">
+            <span onClick={goToToday} className="font-black text-black dark:text-white text-sm uppercase tracking-tight cursor-pointer active:opacity-50 text-center flex-1 italic">
               {calendarTitle}
             </span>
 
-            <button onClick={goToNext} className="p-3 px-5 text-gray-700 active:bg-gray-100 rounded-xl transition flex items-center justify-center">
+            <button onClick={goToNext} className="p-3 px-5 text-gray-700 dark:text-zinc-300 active:bg-gray-100 dark:active:bg-zinc-800 rounded-xl transition flex items-center justify-center">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
           </div>
 
-          <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 shrink-0">
+          <div className="flex bg-white dark:bg-zinc-900 p-1 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 shrink-0">
             {[
               { id: 'dayGridMonth', label: 'Monat' },
               { id: 'timeGridThreeDay', label: '3 Tage' },
@@ -347,8 +421,8 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
                 onClick={() => changeView(v.id)} 
                 className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-tighter rounded-xl transition active:scale-95 ${
                   currentView === v.id 
-                    ? 'bg-gray-900 text-white shadow-md' 
-                    : 'text-gray-400 hover:text-gray-600'
+                    ? 'bg-gray-900 dark:bg-zinc-800 text-white shadow-md' 
+                    : 'text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-400'
                 }`}
               >
                 {v.label}
@@ -358,7 +432,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         </div>
         
         {/* KALENDER */}
-        <div className="h-[65vh] bg-white p-2 rounded-3xl shadow-sm border border-gray-100">
+        <div className="h-[65vh] bg-white dark:bg-zinc-900 p-2 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800/80">
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -426,20 +500,20 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
       </div>
 
       {/* TAB BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-t border-gray-200 flex items-stretch z-50 px-6 pb-safe text-center">
-        <Link href={`/${resolvedParams.id}/log`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400">
+      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 pb-safe text-center">
+        <Link href={`/${resolvedParams.id}/log`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300">
           <div className="w-6 h-6 flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
           </div>
           <span className="text-[10px] font-bold uppercase tracking-widest">Fahrten</span>
         </Link>
-        <div className="flex-1 flex flex-col items-center justify-center gap-1 text-blue-600">
+        <div className="flex-1 flex flex-col items-center justify-center gap-1 text-blue-600 dark:text-blue-400">
           <div className="w-6 h-6 flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest">Kalender</span>
         </div>
-        <Link href={`/${resolvedParams.id}/stats`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400">
+        <Link href={`/${resolvedParams.id}/stats`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300">
           <div className="w-6 h-6 flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
           </div>
@@ -449,9 +523,9 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
 
       {/* MODAL BEARBEITEN/DETAILS */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white p-6 rounded-[2rem] shadow-2xl w-full max-w-sm border border-gray-100 text-black">
-            <h2 className="text-xl font-black mb-6 text-center italic uppercase tracking-tighter">
+        <div className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] shadow-2xl w-full max-w-sm border border-gray-100 dark:border-zinc-800/80 text-black dark:text-white">
+            <h2 className="text-xl font-black mb-6 text-center italic uppercase tracking-tighter text-black dark:text-white">
               {editingEvent ? "Detail" : "Reservieren"}
             </h2>
             <form onSubmit={handleModalSubmit} className="flex flex-col gap-4">
@@ -464,63 +538,63 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
                     id="floating_title"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
-                    className="peer block w-full appearance-none rounded-xl border border-gray-100 bg-gray-100 px-3 pb-2 pt-6 text-sm font-black text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                    className="peer block w-full appearance-none rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-950 px-3 pb-2 pt-6 text-sm font-black text-black dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
                     placeholder=" "
                   />
                   <label
                     htmlFor="floating_title"
-                    className="absolute left-3 top-4 z-10 origin-[0] -translate-y-3 scale-75 transform text-xs font-bold uppercase text-gray-400 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-3 peer-focus:scale-75 peer-focus:text-blue-600 cursor-text pointer-events-none"
+                    className="absolute left-3 top-4 z-10 origin-[0] -translate-y-3 scale-75 transform text-xs font-bold uppercase text-gray-400 dark:text-zinc-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-3 peer-focus:scale-75 peer-focus:text-blue-600 dark:peer-focus:text-blue-400 cursor-text pointer-events-none"
                   >
                     Titel
                   </label>
                 </div>
               ) : (
-                <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-100">
-                  <span className="text-gray-400 font-bold text-xs uppercase">Titel</span>
-                  <span className="font-black text-black text-sm">{newTitle}</span>
+                <div className="bg-gray-100 dark:bg-zinc-950 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
+                  <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase">Titel</span>
+                  <span className="font-black text-black dark:text-white text-sm">{newTitle}</span>
                 </div>
               )}
 
-              <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-100">
-                <span className="text-gray-400 font-bold text-xs uppercase">Benutzer</span>
-                <span className="font-black text-black text-sm">
+              <div className="bg-gray-100 dark:bg-zinc-950 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
+                <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase">Benutzer</span>
+                <span className="font-black text-black dark:text-white text-sm">
                   {editingEvent ? editingEvent.userName : (userProfiles[user?.uid || ""]?.displayName || user?.displayName)}
                 </span>
               </div>
               
               {isOwner && (
                 <div className="flex items-center gap-2 px-2">
-                    <input type="checkbox" id="allDay" checked={isAllDay} onChange={(e) => setIsAllDay(e.target.checked)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"/>
-                    <label htmlFor="allDay" className="text-sm font-bold text-gray-700">Ganztägig</label>
+                    <input type="checkbox" id="allDay" checked={isAllDay} onChange={(e) => setIsAllDay(e.target.checked)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 dark:bg-zinc-950 dark:border-zinc-800"/>
+                    <label htmlFor="allDay" className="text-sm font-bold text-gray-700 dark:text-zinc-350">Ganztägig</label>
                 </div>
               )}
 
-              <div className="bg-gray-100 p-4 rounded-xl flex flex-col gap-4 border border-gray-100">
+              <div className="bg-gray-100 dark:bg-zinc-950 p-4 rounded-xl flex flex-col gap-4 border border-gray-100 dark:border-zinc-800/80">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400 font-bold text-xs uppercase">Beginn</span>
+                  <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase">Beginn</span>
                   {isOwner ? (
                     <div className="flex gap-1">
-                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-white border border-gray-200 p-2 rounded-xl text-sm font-black" />
-                      {!isAllDay && <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="bg-white border border-gray-200 p-2 rounded-xl text-sm font-black" />}
+                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-850 p-2 rounded-xl text-sm font-black" />
+                      {!isAllDay && <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-850 p-2 rounded-xl text-sm font-black" />}
                     </div>
                   ) : (
                     <div className="text-right font-black text-sm leading-tight">
-                      <div className="text-black">{startDate && format(new Date(`${startDate}T${startTime}`), "dd.MM.yy")}</div>
-                      {!isAllDay && <div className="text-blue-600">{startTime}</div>}
+                      <div className="text-black dark:text-white">{startDate && format(new Date(`${startDate}T${startTime}`), "dd.MM.yy")}</div>
+                      {!isAllDay && <div className="text-blue-600 dark:text-blue-400">{startTime}</div>}
                     </div>
                   )}
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400 font-bold text-xs uppercase">Ende</span>
+                  <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase">Ende</span>
                   {isOwner ? (
                     <div className="flex gap-1">
-                      <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-white border border-gray-200 p-2 rounded-xl text-sm font-black" />
-                      {!isAllDay && <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="bg-white border border-gray-200 p-2 rounded-xl text-sm font-black" />}
+                      <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-850 p-2 rounded-xl text-sm font-black" />
+                      {!isAllDay && <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-850 p-2 rounded-xl text-sm font-black" />}
                     </div>
                   ) : (
                     <div className="text-right font-black text-sm leading-tight">
-                      <div className="text-black">{endDate && format(new Date(`${endDate}T${endTime}`), "dd.MM.yy")}</div>
-                      {!isAllDay && <div className="text-blue-600">{endTime}</div>}
+                      <div className="text-black dark:text-white">{endDate && format(new Date(`${endDate}T${endTime}`), "dd.MM.yy")}</div>
+                      {!isAllDay && <div className="text-blue-600 dark:text-blue-400">{endTime}</div>}
                     </div>
                   )}
                 </div>
@@ -528,8 +602,8 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
 
               <div className="flex flex-col gap-2 mt-4">
                 {isOwner && <button type="submit" className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase italic active:scale-95 transition text-sm">Speichern</button>}
-                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full bg-gray-200 text-gray-700 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 transition">Schließen</button>
-                {isOwner && editingEvent && <button type="button" onClick={handleDelete} className="w-full bg-red-50 text-red-500 font-bold py-3 rounded-xl uppercase text-xs mt-2 border-none">Löschen</button>}
+                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 transition">Schließen</button>
+                {isOwner && editingEvent && <button type="button" onClick={handleDelete} className="w-full bg-red-50 dark:bg-red-950/20 text-red-500 dark:text-red-400 font-bold py-3 rounded-xl uppercase text-xs mt-2 border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-950/40 active:scale-95 transition">Löschen</button>}
               </div>
             </form>
           </div>

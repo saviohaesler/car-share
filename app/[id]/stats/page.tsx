@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
 import { User } from "firebase/auth";
 import Link from "next/link";
@@ -32,6 +32,12 @@ const MONTHS_DE = [
   "Juli", "August", "September", "Oktober", "November", "Dezember"
 ];
 
+const PRESET_COLORS = [
+  "#fbbf24", "#ef4444", "#ec4899", "#8b5cf6", "#3b82f6",
+  "#06b6d4", "#14b8a6", "#10b981", "#22c55e", "#84cc16",
+  "#eab308", "#f97316", "#6366f1", "#a855f7"
+];
+
 const formatKm = (km: number | string | undefined) => {
   if (km === undefined || km === null) return '?';
   return km.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
@@ -49,6 +55,33 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
   const [timeRange, setTimeRange] = useState<"1m" | "3m" | "6m" | "12m" | "all">("1m");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<DriveLog | null>(null);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
+    setTheme(initialTheme);
+    if (initialTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+    localStorage.setItem("theme", nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (u) => {
@@ -56,6 +89,20 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         window.location.href = "/";
       } else {
         setUser(u);
+
+        // Auto-Initialize user profile document inside Firestore if it doesn't exist
+        const userRef = doc(db, "users", u.uid);
+        const userDoc = await getDoc(userRef);
+        if (!userDoc.exists()) {
+          const profileName = u.displayName || "Neues Mitglied";
+          const profileColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+          await setDoc(userRef, {
+            uid: u.uid,
+            displayName: profileName,
+            color: profileColor
+          }, { merge: true });
+        }
+
         const carDoc = await getDoc(doc(db, "cars", resolvedParams.id));
         if (carDoc.exists()) {
           setCarName(carDoc.data().name || "Auto");
@@ -236,21 +283,28 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
   if (!user) return null;
 
   return (
-    <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 text-black overflow-y-auto">
+    <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-y-auto transition-colors duration-200">
       <div className="w-full max-w-md flex flex-col pb-28">
         
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
-          <Link href={`/`} className="bg-white p-3 px-5 rounded-2xl shadow-sm text-gray-700 font-bold text-sm active:scale-90 transition uppercase">
+          <Link href={`/`} className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 p-3 px-5 rounded-2xl shadow-sm dark:shadow-zinc-950/40 text-gray-700 dark:text-zinc-300 font-bold text-sm active:scale-90 transition uppercase">
             Zurück
           </Link>
-          <h1 className="text-xl font-black italic uppercase text-gray-800 tracking-tighter">
+          <h1 className="text-xl font-black italic uppercase text-gray-800 dark:text-zinc-100 tracking-tighter">
             {carName}
           </h1>
+          <button onClick={toggleTheme} className="p-2 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400 shadow-sm">
+            {theme === "light" ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line><line x1="18.36" y1="5.64" x2="19.78" y2="7.06"></line></svg>
+            )}
+          </button>
         </div>
 
         {/* TIME RANGE SELECTOR PILLS */}
-        <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 mb-4 shrink-0">
+        <div className="flex bg-white dark:bg-zinc-900 p-1 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 mb-4 shrink-0">
           {[
             { id: "1m", label: "1 Mon." },
             { id: "3m", label: "3 Mon." },
@@ -263,8 +317,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
               onClick={() => setTimeRange(r.id as any)}
               className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-tighter rounded-xl transition active:scale-95 ${
                 timeRange === r.id
-                  ? "bg-gray-900 text-white shadow-md"
-                  : "text-gray-400 hover:text-gray-600"
+                  ? "bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-md"
+                  : "text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300"
               }`}
             >
               {r.label}
@@ -275,8 +329,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         {/* MONTH SELECTOR OR RANGE BANNER */}
         {timeRange === "1m" ? (
           <div className="flex flex-col gap-3 mb-6 relative">
-            <div className="flex justify-between items-center bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
-              <button onClick={handlePrevMonth} className="p-3 px-5 text-gray-700 active:bg-gray-100 rounded-xl transition flex items-center justify-center">
+            <div className="flex justify-between items-center bg-white dark:bg-zinc-900 p-1.5 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80">
+              <button onClick={handlePrevMonth} className="p-3 px-5 text-gray-700 dark:text-zinc-300 active:bg-gray-100 dark:active:bg-zinc-800 rounded-xl transition flex items-center justify-center">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
@@ -284,7 +338,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
               <button 
                 onClick={() => setIsMonthDropdownOpen(!isMonthDropdownOpen)} 
-                className="font-black text-black text-sm uppercase tracking-tight active:opacity-50 text-center flex-1 italic flex items-center justify-center gap-1.5"
+                className="font-black text-black dark:text-zinc-100 text-sm uppercase tracking-tight active:opacity-50 text-center flex-1 italic flex items-center justify-center gap-1.5"
               >
                 <span>{MONTHS_DE[selectedDate.getMonth()]} {selectedDate.getFullYear()}</span>
                 <svg className={`transition-transform duration-200 ${isMonthDropdownOpen ? 'rotate-180' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -292,7 +346,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                 </svg>
               </button>
 
-              <button onClick={handleNextMonth} className="p-3 px-5 text-gray-700 active:bg-gray-100 rounded-xl transition flex items-center justify-center">
+              <button onClick={handleNextMonth} className="p-3 px-5 text-gray-700 dark:text-zinc-300 active:bg-gray-100 dark:active:bg-zinc-800 rounded-xl transition flex items-center justify-center">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
@@ -303,7 +357,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
             {isMonthDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsMonthDropdownOpen(false)} />
-                <div className="absolute top-14 left-0 right-0 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 p-4 max-h-[300px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute top-14 left-0 right-0 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-2xl shadow-xl z-50 p-4 max-h-[300px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {MONTHS_DE.map((m, idx) => (
                       <button 
@@ -312,15 +366,15 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                         className={`py-2 px-1 text-[11px] font-black uppercase rounded-xl transition ${
                           selectedDate.getMonth() === idx 
                             ? 'bg-blue-600 text-white shadow-md' 
-                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            : 'bg-gray-50 dark:bg-zinc-950 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800'
                         }`}
                       >
                         {m.substring(0, 4)}
                       </button>
                     ))}
                   </div>
-                  <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Jahr</span>
+                  <div className="border-t border-gray-100 dark:border-zinc-800/80 pt-3 flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Jahr</span>
                     <div className="flex gap-2">
                       {yearsAvailable.map(y => (
                         <button 
@@ -328,8 +382,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                           onClick={() => handleSelectYear(y)} 
                           className={`px-3 py-1.5 text-xs font-black rounded-lg transition ${
                             selectedDate.getFullYear() === y 
-                              ? 'bg-gray-800 text-white' 
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              ? 'bg-gray-800 dark:bg-zinc-100 text-white dark:text-zinc-950' 
+                              : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700'
                           }`}
                         >
                           {y}
@@ -342,55 +396,55 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
             )}
           </div>
         ) : (
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 text-center">
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Statistik-Zeitraum</span>
-            <span className="font-black text-black text-sm italic uppercase">{getRangeLabel()}</span>
+          <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 mb-6 text-center">
+            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1 block">Statistik-Zeitraum</span>
+            <span className="font-black text-black dark:text-zinc-100 text-sm italic uppercase">{getRangeLabel()}</span>
           </div>
         )}
 
         {/* OVERVIEW METRIC CARDS */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Distanz</span>
-            <span className="text-2xl font-black italic tracking-tighter text-blue-600">{formatKm(totalDistance)} km</span>
-            <span className="text-[9px] font-bold text-gray-400 uppercase mt-1">{drivesCount} Fahrten</span>
+          <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800/80 shadow-sm flex flex-col items-center justify-center text-center">
+            <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5">Distanz</span>
+            <span className="text-2xl font-black italic tracking-tighter text-blue-600 dark:text-blue-400">{formatKm(totalDistance)} km</span>
+            <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-1">{drivesCount} Fahrten</span>
           </div>
-          <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Tankkosten</span>
-            <span className="text-2xl font-black italic tracking-tighter text-orange-600">{totalFuelCosts.toFixed(2)}.-</span>
-            <span className="text-[9px] font-bold text-gray-400 uppercase mt-1">{fuelingsCount} Tankstopps</span>
+          <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800/80 shadow-sm flex flex-col items-center justify-center text-center">
+            <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5">Tankkosten</span>
+            <span className="text-2xl font-black italic tracking-tighter text-orange-600 dark:text-orange-400">{totalFuelCosts.toFixed(2)}.-</span>
+            <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-1">{fuelingsCount} Tankstopps</span>
           </div>
         </div>
 
         {/* DISTANCE VISUALIZATION PANELS */}
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 mb-6 text-left">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-5 italic border-b border-gray-50 pb-2">
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-zinc-800/80 mb-6 text-left">
+          <h2 className="text-xs font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-5 italic border-b border-gray-50 dark:border-zinc-800/50 pb-2">
             Fahrstrecke nach Person
           </h2>
           {sortedDistanceList.length === 0 ? (
-            <p className="text-center text-sm font-black text-gray-300 uppercase py-4 italic">
+            <p className="text-center text-sm font-black text-gray-300 dark:text-zinc-600 uppercase py-4 italic">
               Keine Fahrten in diesem Monat
             </p>
           ) : (
             <div className="flex flex-col gap-5">
               {sortedDistanceList.map((item) => (
                 <div key={item.userId} className="flex flex-col">
-                  <div className="flex justify-between items-center text-sm font-black text-gray-800">
+                  <div className="flex justify-between items-center text-sm font-black text-gray-800 dark:text-zinc-200">
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: item.color }} />
                       <span>{item.name}</span>
                     </div>
-                    <span className="font-black italic text-gray-600">
-                      {formatKm(item.dist)} km <span className="text-xs font-bold text-gray-400">({item.percentage.toFixed(0)}%)</span>
+                    <span className="font-black italic text-gray-600 dark:text-zinc-400">
+                      {formatKm(item.dist)} km <span className="text-xs font-bold text-gray-400 dark:text-zinc-500">({item.percentage.toFixed(0)}%)</span>
                     </span>
                   </div>
-                  <div className="w-full bg-gray-100 h-3.5 rounded-full mt-2 overflow-hidden shadow-inner border border-gray-50">
+                  <div className="w-full bg-gray-100 dark:bg-zinc-950 h-3.5 rounded-full mt-2 overflow-hidden shadow-inner border border-gray-50 dark:border-zinc-800/20">
                     <div 
                       className="h-full rounded-full transition-all duration-700 ease-out" 
                       style={{ width: `${item.percentage}%`, backgroundColor: item.color }} 
                     />
                   </div>
-                  <div className="flex justify-between items-center mt-1 text-[9px] font-bold text-gray-400 uppercase tracking-tight">
+                  <div className="flex justify-between items-center mt-1 text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-tight">
                     <span>{item.count} Fahrt{item.count > 1 ? 'en' : ''}</span>
                     <span>Schnitt: {formatKm(Math.round(item.dist / item.count))} km</span>
                   </div>
@@ -401,12 +455,12 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         </div>
 
         {/* FUEL DEBT VISUALIZATION PANELS */}
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 mb-6 text-left">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-5 italic border-b border-gray-50 pb-2">
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-zinc-800/80 mb-6 text-left">
+          <h2 className="text-xs font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-5 italic border-b border-gray-50 dark:border-zinc-800/50 pb-2">
             Abrechnung & Schulden
           </h2>
           {sortedFuelList.length === 0 ? (
-            <p className="text-center text-sm font-black text-gray-300 uppercase py-4 italic">
+            <p className="text-center text-sm font-black text-gray-300 dark:text-zinc-600 uppercase py-4 italic">
               Keine Tankabrechnungen in diesem Monat
             </p>
           ) : (
@@ -414,15 +468,15 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
               <div className="flex flex-col gap-3">
                 {sortedFuelList.map((item) => (
-                  <div key={item.userId} className="flex justify-between items-center bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
+                  <div key={item.userId} className="flex justify-between items-center bg-gray-50 dark:bg-zinc-950/60 p-3.5 rounded-2xl border border-gray-100 dark:border-zinc-800/40">
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                       <div className="flex flex-col">
-                        <span className="font-black text-sm text-gray-800">{item.name}</span>
-                        <span className="text-[9px] font-bold text-gray-400 uppercase">{formatKm(item.dist)} km abgerechnet</span>
+                        <span className="font-black text-sm text-gray-800 dark:text-zinc-200">{item.name}</span>
+                        <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(item.dist)} km abgerechnet</span>
                       </div>
                     </div>
-                    <span className="font-black text-base text-green-600 italic">
+                    <span className="font-black text-base text-green-600 dark:text-green-400 italic">
                       {item.debt.toFixed(2)}.-
                     </span>
                   </div>
@@ -434,13 +488,13 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
         {/* MONTH DETAILED FEED / HISTORY */}
         <div className="flex flex-col text-left">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-4 mb-4 italic">
+          <h2 className="text-xs font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest ml-4 mb-4 italic">
             Protokolle in {MONTHS_DE[selectedDate.getMonth()]}
           </h2>
           <div className="flex flex-col gap-3">
             {filteredLogs.length === 0 ? (
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 text-center shadow-sm">
-                <p className="text-sm font-black text-gray-300 italic uppercase">Keine Protokolle vorhanden</p>
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800/80 text-center shadow-sm">
+                <p className="text-sm font-black text-gray-300 dark:text-zinc-600 italic uppercase">Keine Protokolle vorhanden</p>
               </div>
             ) : (
               filteredLogs.map((log) => {
@@ -449,21 +503,27 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                 return (
                   <div 
                     key={log.id} 
-                    className={`p-4 pl-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center relative overflow-hidden transition ${
-                      log.type === 'fuel' ? 'bg-orange-50/50 border-orange-200' : 'bg-white'
+                    onClick={() => {
+                      setSelectedLog(log);
+                      setIsDetailModalOpen(true);
+                    }}
+                    className={`p-4 pl-5 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 flex justify-between items-center relative overflow-hidden transition cursor-pointer active:scale-98 hover:opacity-95 dark:hover:opacity-90 ${
+                      log.type === 'fuel' 
+                        ? 'bg-orange-50/50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40 text-zinc-900 dark:text-zinc-100 hover:bg-orange-100/45 dark:hover:bg-orange-900/30' 
+                        : 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-gray-50/80 dark:hover:bg-zinc-800/50'
                     }`}
                   >
                     <div className="absolute left-0 top-0 bottom-0 w-2" style={{ backgroundColor: log.type === 'fuel' ? '#f97316' : (log.userColor || "#ccc") }} />
                     <div className="flex flex-col text-left">
-                      <span className="font-black text-gray-800 text-base leading-tight">
+                      <span className="font-black text-gray-800 dark:text-zinc-200 text-base leading-tight">
                         {log.type === 'fuel' ? `GETANKT` : `${formatKm(log.startKm)} → ${formatKm(log.km)} km`}
                       </span>
-                      {log.type !== 'fuel' && <span className="text-[9px] font-black text-green-600 uppercase tracking-tight">+ {formatKm(diff)} km gefahren</span>}
-                      {log.type === 'fuel' && <span className="text-[9px] font-black text-orange-600 uppercase tracking-tight">bei {formatKm(log.km)} km</span>}
-                      <span className="text-[9px] font-bold text-gray-400 uppercase mt-0.5">{log.userName}</span>
+                      {log.type !== 'fuel' && <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-tight">+ {formatKm(diff)} km gefahren</span>}
+                      {log.type === 'fuel' && <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-tight">bei {formatKm(log.km)} km</span>}
+                      <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-0.5">{log.userName}</span>
                     </div>
                     <div className="text-right flex flex-col items-end shrink-0">
-                      <span className="text-[10px] font-black text-gray-400 uppercase">
+                      <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase">
                         {logDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
                       </span>
                       {log.type === 'fuel' && (
@@ -482,8 +542,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* TAB BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-t border-gray-200 flex items-stretch z-50 px-6 pb-safe text-center">
-        <Link href={`/${resolvedParams.id}/log`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400">
+      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 pb-safe text-center">
+        <Link href={`/${resolvedParams.id}/log`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400 dark:text-zinc-500">
           <div className="w-6 h-6 flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -495,7 +555,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
           </div>
           <span className="text-[10px] font-bold uppercase tracking-widest">Fahrten</span>
         </Link>
-        <Link href={`/${resolvedParams.id}/calendar`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400">
+        <Link href={`/${resolvedParams.id}/calendar`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400 dark:text-zinc-500">
           <div className="w-6 h-6 flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -506,7 +566,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
           </div>
           <span className="text-[10px] font-bold uppercase tracking-widest">Kalender</span>
         </Link>
-        <div className="flex-1 flex flex-col items-center justify-center gap-1 text-blue-600">
+        <div className="flex-1 flex flex-col items-center justify-center gap-1 text-blue-600 dark:text-blue-400">
           <div className="w-6 h-6 flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="20" x2="18" y2="10" />
@@ -522,7 +582,67 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; }
       `}</style>
+
+      {/* DETAIL MODAL (READ-ONLY) */}
+      {isDetailModalOpen && selectedLog && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] w-full max-w-sm text-zinc-900 dark:text-zinc-100 border border-gray-100 dark:border-zinc-800 shadow-2xl overflow-hidden">
+            <h2 className="text-xl font-black mb-6 text-center italic uppercase tracking-tighter text-black dark:text-white">
+              {selectedLog.type === 'fuel' ? 'Tankbeleg' : 'Details'}
+            </h2>
+            <div className="flex flex-col gap-4 overflow-y-auto max-h-[70vh] px-1 text-left text-zinc-900 dark:text-zinc-150">
+              <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
+                <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedLog.type === 'fuel' ? '#f97316' : selectedLog.userColor }}></div>
+                  <span className="font-black text-sm text-black dark:text-zinc-200">{selectedLog.userName}</span>
+                </div>
+              </div>
+
+              {selectedLog.type === 'fuel' ? (
+                <div className="flex flex-col gap-4">
+                  <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-2xl border border-orange-100 dark:border-orange-900/30 text-center">
+                    <span className="text-[10px] font-bold text-orange-500 dark:text-orange-400 uppercase tracking-widest block mb-1">Betrag</span>
+                    <span className="text-3xl font-black text-orange-600 dark:text-orange-400 italic">{selectedLog.fuelAmount?.toFixed(2)}.-</span>
+                  </div>
+                  {selectedLog.fuelDetails && (
+                    <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-2xl p-4 shadow-sm">
+                      <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest border-b border-gray-100 dark:border-zinc-800 pb-2 text-left italic">Aufteilung</p>
+                      <div className="flex flex-col gap-3">
+                        {selectedLog.fuelDetails.map((s, i) => (
+                          <div key={i} className="flex justify-between items-center">
+                            <div className="flex items-center gap-2 text-left">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }}></div>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-gray-800 dark:text-zinc-300 text-sm">{s.name}</span>
+                                <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(s.dist)} km</span>
+                              </div>
+                            </div>
+                            <span className={`font-black ${s.debt > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'} text-sm`}>
+                              {s.debt > 0 ? `${s.debt.toFixed(2)}.-` : '0.00'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-gray-50 dark:bg-zinc-800/40 p-5 rounded-2xl border border-gray-100 dark:border-zinc-800/80 text-center">
+                  <p className="text-2xl font-black italic text-zinc-900 dark:text-white">{formatKm(selectedLog.startKm)} → {formatKm(selectedLog.km)} km</p>
+                  <p className="text-xs font-bold text-green-500 dark:text-green-400 uppercase mt-1">{formatKm((selectedLog.km - (selectedLog.startKm ?? selectedLog.km)))} km gefahren</p>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 mt-2">
+                <button onClick={() => setIsDetailModalOpen(false)} className="w-full bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 hover:bg-gray-300 dark:hover:bg-zinc-700 transition">Schließen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

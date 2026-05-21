@@ -2,11 +2,17 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
 import { db, auth, googleProvider } from "../../../lib/firebase";
 import { signInWithPopup, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
+const PRESET_COLORS = [
+  "#fbbf24", "#ef4444", "#ec4899", "#8b5cf6", "#3b82f6",
+  "#06b6d4", "#14b8a6", "#10b981", "#22c55e", "#84cc16",
+  "#eab308", "#f97316", "#6366f1", "#a855f7"
+];
 
 export default function InvitePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -16,10 +22,37 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
   const [user, setUser] = useState<User | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
+    setTheme(initialTheme);
+    if (initialTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        // Auto-Initialize user profile document inside Firestore if it doesn't exist
+        const userRef = doc(db, "users", currentUser.uid);
+        const userDoc = await getDoc(userRef);
+        if (!userDoc.exists()) {
+          const profileName = currentUser.displayName || "Neues Mitglied";
+          const profileColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+          await setDoc(userRef, {
+            uid: currentUser.uid,
+            displayName: profileName,
+            color: profileColor
+          }, { merge: true });
+        }
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -69,20 +102,20 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
-      <div className="bg-white p-8 rounded-[2.5rem] shadow-xl text-center max-w-md w-full border border-gray-100">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
+      <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 text-center max-w-md w-full border border-gray-100 dark:border-zinc-800/80">
         
-        <h1 className="text-3xl font-black text-gray-800 tracking-tight italic uppercase mb-8">
+        <h1 className="text-3xl font-black text-gray-800 dark:text-zinc-100 tracking-tight italic uppercase mb-8">
           Einladung
         </h1>
 
-        <div className="bg-gray-50 p-6 rounded-3xl mb-8 border border-gray-100">
+        <div className="bg-gray-50 dark:bg-zinc-950/50 p-6 rounded-3xl mb-8 border border-gray-100 dark:border-zinc-800/80">
           {errorMsg ? (
-            <p className="text-red-500 font-bold italic">{errorMsg}</p>
+            <p className="text-red-500 dark:text-red-400 font-bold italic">{errorMsg}</p>
           ) : (
             <>
-              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Du wurdest eingeladen zu</p>
-              <h2 className="text-2xl font-black text-gray-900 italic uppercase">
+              <p className="text-gray-400 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Du wurdest eingeladen zu</p>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-zinc-100 italic uppercase">
                 {carName}
               </h2>
             </>
@@ -93,12 +126,12 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
           <div className="flex flex-col gap-4">
             {!user ? (
               <div className="flex flex-col items-center">
-                <p className="text-sm text-gray-500 font-medium italic mb-6">
+                <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium italic mb-6">
                   Melde dich an, um der Gruppe beizutreten.
                 </p>
                 <button 
                   onClick={handleLogin}
-                  className="flex items-center justify-center gap-4 bg-white border border-gray-200 text-gray-700 font-bold py-4 px-8 rounded-full w-full shadow-sm hover:shadow-md active:scale-95 transition text-lg select-none"
+                  className="flex items-center justify-center gap-4 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-zinc-300 font-bold py-4 px-8 rounded-full w-full shadow-sm hover:shadow-md active:scale-95 transition text-lg select-none"
                 >
                   <svg width="24" height="24" viewBox="0 0 24 24" style={{ backgroundColor: 'transparent' }}>
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -112,20 +145,20 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
             ) : (
               <>
                 <div className="flex flex-col items-center gap-1 mb-4">
-                   <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Angemeldet als</p>
-                   <p className="font-black text-gray-800 text-lg">{user.displayName}</p>
+                   <p className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-tighter">Angemeldet als</p>
+                   <p className="font-black text-gray-800 dark:text-zinc-100 text-lg">{user.displayName}</p>
                 </div>
                 
                 <button 
                   onClick={handleJoinCar}
                   disabled={isJoining}
-                  className="bg-gray-800 text-white font-black py-5 rounded-[2rem] w-full shadow-xl active:scale-95 transition text-lg uppercase italic disabled:opacity-50"
+                  className="bg-gray-800 dark:bg-zinc-100 text-white dark:text-zinc-950 font-black py-5 rounded-[2rem] w-full shadow-xl active:scale-95 transition text-lg uppercase italic disabled:opacity-50"
                 >
                   {isJoining ? "Trete bei..." : "Jetzt Beitreten"}
                 </button>
 
-                <p className="text-gray-400 text-xs font-bold uppercase mt-2">
-                  Nicht dein Account? <button onClick={() => auth.signOut()} className="text-red-500 hover:underline">Abmelden</button>
+                <p className="text-gray-400 dark:text-zinc-500 text-xs font-bold uppercase mt-2">
+                  Nicht dein Account? <button onClick={() => auth.signOut()} className="text-red-500 dark:text-red-400 hover:underline">Abmelden</button>
                 </p>
               </>
             )}
@@ -135,14 +168,14 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
         {errorMsg && (
           <Link 
             href="/" 
-            className="inline-block bg-gray-800 text-white font-bold py-4 px-8 rounded-2xl active:scale-95 transition uppercase text-sm"
+            className="inline-block bg-gray-800 dark:bg-zinc-100 text-white dark:text-zinc-950 font-bold py-4 px-8 rounded-2xl active:scale-95 transition uppercase text-sm"
           >
             Zurück zur Startseite
           </Link>
         )}
       </div>
       
-      <p className="mt-8 text-gray-300 font-black italic tracking-tighter uppercase text-xs">Carshare App</p>
+      <p className="mt-8 text-gray-300 dark:text-zinc-800 font-black italic tracking-tighter uppercase text-xs">Carshare App</p>
     </main>
   );
 }
