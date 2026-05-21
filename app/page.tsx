@@ -41,6 +41,7 @@ export default function Home() {
   const [isEditCarModalOpen, setIsEditCarModalOpen] = useState(false);
   const [editCarData, setEditCarData] = useState<{id: string, name: string, initialKm: string} | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -60,6 +61,10 @@ export default function Home() {
       document.head.appendChild(meta);
     }
     meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
+
+    // Load saved notification preference
+    const savedNotify = localStorage.getItem("notificationsEnabled") === "true";
+    setNotificationsEnabled(savedNotify);
   }, []);
 
   const toggleTheme = () => {
@@ -75,6 +80,25 @@ export default function Home() {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
       meta.setAttribute("content", nextTheme === "dark" ? "#09090b" : "#f9fafb");
+    }
+  };
+
+  const toggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      if (typeof window !== "undefined" && "Notification" in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+          setNotificationsEnabled(true);
+          localStorage.setItem("notificationsEnabled", "true");
+        } else {
+          alert("Bitte erlaube Benachrichtigungen in deinen Browsereinstellungen.");
+        }
+      } else {
+        alert("Benachrichtigungen werden von diesem Browser nicht unterstützt.");
+      }
+    } else {
+      setNotificationsEnabled(false);
+      localStorage.setItem("notificationsEnabled", "false");
     }
   };
 
@@ -308,6 +332,27 @@ export default function Home() {
                     ) : (
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line><line x1="18.36" y1="5.64" x2="19.78" y2="7.06"></line></svg>
                     )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Benachrichtigungen</label>
+                <div className="flex justify-between items-center bg-gray-50 dark:bg-zinc-800/40 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/80 mt-2">
+                  <span className="text-sm font-bold text-gray-750 dark:text-zinc-300">
+                    {notificationsEnabled ? "Aktiviert" : "Deaktiviert"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={toggleNotifications}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${
+                      notificationsEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-zinc-700'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-md ${
+                        notificationsEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
                   </button>
                 </div>
               </div>

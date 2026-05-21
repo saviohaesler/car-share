@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
 import { User } from "firebase/auth";
@@ -181,6 +181,11 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     });
   }, [user]);
 
+  const userProfilesRef = useRef(userProfiles);
+  useEffect(() => {
+    userProfilesRef.current = userProfiles;
+  }, [userProfiles]);
+
   useEffect(() => {
     if (!user) return;
     let unsubscribeLogs: () => void;
@@ -197,10 +202,31 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         }
       } catch (error) { console.error(error); }
 
+      let isInitial = true;
       const q = query(collection(db, "cars", resolvedParams.id, "logs"), orderBy("timestamp", "desc"));
       unsubscribeLogs = onSnapshot(q, (snapshot) => {
         const fetchedLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as DriveLog));
         setLogs(fetchedLogs);
+        
+        // Listen to document changes to catch new additions
+        if (!isInitial) {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+              const newLog = change.doc.data() as DriveLog;
+              const savedNotify = localStorage.getItem("notificationsEnabled") === "true";
+              if (savedNotify && newLog.userId && newLog.userId !== user?.uid) {
+                const driverName = userProfilesRef.current[newLog.userId]?.displayName || "Ein Mitglied";
+                if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+                  new Notification("Neuer Eintrag in CarShare", {
+                    body: `${driverName} hat eine Fahrt eingetragen: ${newLog.startKm || 0} km - ${newLog.km} km (${newLog.km - (newLog.startKm || 0)} km)`,
+                    icon: "/icon.png"
+                  });
+                }
+              }
+            }
+          });
+        }
+        isInitial = false;
         
         if (fetchedLogs.length > 0) {
             const lastDrive = fetchedLogs.find(l => l.km);
