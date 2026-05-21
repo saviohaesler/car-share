@@ -80,8 +80,6 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<DriveLog | null>(null);
-  const [editStartKm, setEditStartKm] = useState("");
-  const [editEndKm, setEditEndKm] = useState("");
 
   const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
   const [fuelPrice, setFuelPrice] = useState("");
@@ -119,27 +117,6 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     }
   };
 
-  const decrementEditStartKm = () => {
-    const currentVal = Number(editStartKm);
-    if (currentVal > initialKm) {
-        updateEditStartKm(String(currentVal - 1));
-    }
-  };
-
-  const decrementEditEndKm = () => {
-    const minEnd = Number(editStartKm);
-    const currentVal = Number(editEndKm);
-    if (currentVal > minEnd) {
-        setEditEndKm(String(currentVal - 1));
-    }
-  };
-
-  const updateEditStartKm = (val: string) => {
-    setEditStartKm(val);
-    if (Number(editEndKm) < Number(val)) {
-      setEditEndKm(val);
-    }
-  };
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (u) => {
@@ -251,8 +228,6 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   const handleEditClick = (log: DriveLog) => {
     setEditingLog(log);
-    setEditStartKm(log.startKm?.toString() || log.km.toString());
-    setEditEndKm(log.km.toString());
     setIsModalOpen(true);
   };
 
@@ -363,20 +338,6 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     setIsSaving(false);
   };
 
-  const handleUpdateLog = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingLog || !user || editingLog.userId !== user.uid) return;
-    const sKm = Math.floor(Number(editStartKm));
-    const eKm = Math.floor(Number(editEndKm));
-    if (eKm < sKm) return alert("End-KM muss höher als Start-KM sein!");
-    try {
-      await updateDoc(doc(db, "cars", resolvedParams.id, "logs", editingLog.id), {
-        startKm: sKm,
-        km: eKm
-      });
-      setIsModalOpen(false);
-    } catch (error) { console.error(error); }
-  };
 
   const handleDeleteLog = async () => {
     if (!editingLog || !user || editingLog.userId !== user.uid) return;
@@ -564,32 +525,10 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                 )}
                             </div>
                         ) : (
-                            editingLog.userId === user.uid ? (
-                                <div className="flex flex-col gap-4">
-                                    <div className="flex flex-col gap-1 text-left">
-                                        <label className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 ml-2 uppercase tracking-widest">Start KM</label>
-                                        <div className="flex items-center gap-2">
-                                            <button type="button" onClick={decrementEditStartKm} disabled={Number(editStartKm) <= initialKm} className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 active:scale-95 text-gray-800 dark:text-zinc-200 h-10 w-10 rounded-xl flex items-center justify-center font-bold disabled:opacity-30 disabled:active:scale-100 transition-opacity">-</button>
-                                            <input type="number" step="1" value={editStartKm} onChange={(e) => updateEditStartKm(e.target.value)} className="bg-gray-50 dark:bg-zinc-900/50 text-gray-900 dark:text-white h-10 flex-1 rounded-xl font-black text-center outline-none border border-gray-100 dark:border-zinc-800 focus:border-green-500 transition no-spinner text-sm" required />
-                                            <button type="button" onClick={() => updateEditStartKm(String(Number(editStartKm) + 1))} className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 active:scale-95 text-gray-800 dark:text-zinc-200 h-10 w-10 rounded-xl flex items-center justify-center font-bold transition-opacity">+</button>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-1 text-left">
-                                        <label className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 ml-2 uppercase tracking-widest">Ende KM</label>
-                                        <div className="flex items-center gap-2">
-                                            <button type="button" onClick={decrementEditEndKm} disabled={Number(editEndKm) <= Number(editStartKm)} className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 active:scale-95 text-gray-800 dark:text-zinc-200 h-10 w-10 rounded-xl flex items-center justify-center font-bold disabled:opacity-30 disabled:active:scale-100 transition-opacity">-</button>
-                                            <input type="number" step="1" value={editEndKm} onChange={(e) => setEditEndKm(e.target.value)} className="bg-gray-50 dark:bg-zinc-900/50 text-gray-900 dark:text-white h-10 flex-1 rounded-xl font-black text-center outline-none border border-gray-100 dark:border-zinc-800 focus:border-green-500 transition no-spinner text-sm" required />
-                                            <button type="button" onClick={() => setEditEndKm(String(Number(editEndKm) + 1))} className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 active:scale-95 text-gray-800 dark:text-zinc-200 h-10 w-10 rounded-xl flex items-center justify-center font-bold transition-opacity">+</button>
-                                        </div>
-                                    </div>
-                                    <button onClick={handleUpdateLog} className="w-full bg-green-500 text-white font-black py-4 rounded-2xl uppercase italic shadow-lg shadow-green-500/20 active:scale-95 transition">Speichern</button>
-                                </div>
-                            ) : (
-                                <div className="bg-gray-50 dark:bg-zinc-800/40 p-5 rounded-2xl border border-gray-100 dark:border-zinc-800/80 text-center">
-                                    <p className="text-2xl font-black italic text-zinc-900 dark:text-white">{formatKm(editingLog.startKm)} → {formatKm(editingLog.km)} km</p>
-                                    <p className="text-xs font-bold text-green-500 dark:text-green-400 uppercase mt-1">{formatKm((editingLog.km - (editingLog.startKm ?? editingLog.km)))} km gefahren</p>
-                                </div>
-                            )
+                            <div className="bg-gray-50 dark:bg-zinc-800/40 p-5 rounded-2xl border border-gray-100 dark:border-zinc-800/80 text-center">
+                                <p className="text-2xl font-black italic text-zinc-900 dark:text-white">{formatKm(editingLog.startKm)} → {formatKm(editingLog.km)} km</p>
+                                <p className="text-xs font-bold text-green-500 dark:text-green-400 uppercase mt-1">{formatKm((editingLog.km - (editingLog.startKm ?? editingLog.km)))} km gefahren</p>
+                            </div>
                         )}
 
                         <div className="flex flex-col gap-2 mt-2">
