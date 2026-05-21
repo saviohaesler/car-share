@@ -28,20 +28,14 @@ interface DriveLog {
 }
 
 const PRESET_COLORS = [
-  "#fbbf24", // Amber
   "#ef4444", // Red
-  "#ec4899", // Pink
-  "#8b5cf6", // Violet
-  "#3b82f6", // Blue
-  "#06b6d4", // Cyan
-  "#14b8a6", // Teal
-  "#10b981", // Emerald
-  "#22c55e", // Green
-  "#84cc16", // Lime
-  "#eab308", // Yellow
   "#f97316", // Orange
-  "#6366f1", // Indigo
-  "#a855f7"  // Purple
+  "#fbbf24", // Amber
+  "#10b981", // Green
+  "#06b6d4", // Cyan
+  "#3b82f6", // Blue
+  "#8b5cf6", // Violet
+  "#ec4899"  // Pink
 ];
 
 const formatKm = (km: number | string | undefined) => {
@@ -60,15 +54,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
   const [startKm, setStartKm] = useState("");
   const [endKm, setEndKm] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingLog, setEditingLog] = useState<DriveLog | null>(null);
-  const [editStartKm, setEditStartKm] = useState("");
-  const [editEndKm, setEditEndKm] = useState("");
-
-  const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
-  const [fuelPrice, setFuelPrice] = useState("");
-  const [fuelSummary, setFuelSummary] = useState<FuelDetail[] | null>(null);
+  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
@@ -82,18 +68,24 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     } else {
       document.documentElement.classList.remove("dark");
     }
+    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<DriveLog | null>(null);
+  const [editStartKm, setEditStartKm] = useState("");
+  const [editEndKm, setEditEndKm] = useState("");
+
+  const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
+  const [fuelPrice, setFuelPrice] = useState("");
+  const [fuelSummary, setFuelSummary] = useState<FuelDetail[] | null>(null);
 
   const roundTo05 = (num: number) => {
     return Math.round(num * 20) / 20;
@@ -179,6 +171,15 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    return onSnapshot(collection(db, "users"), (snapshot) => {
+      const profiles: any = {};
+      snapshot.docs.forEach(doc => { profiles[doc.id] = doc.data(); });
+      setUserProfiles(profiles);
+    });
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -286,7 +287,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
           userStats[log.userId] = { 
             name: log.userName, 
             totalDist: 0, 
-            color: log.userColor || "#ccc" 
+            color: userProfiles[log.userId]?.color || log.userColor || "#ccc" 
           };
         }
         userStats[log.userId].totalDist += dist;
@@ -375,13 +376,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
           <h1 className="text-xl font-black italic uppercase text-gray-800 dark:text-zinc-100 tracking-tighter">
             {carName}
           </h1>
-          <button onClick={toggleTheme} className="p-2 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400 shadow-sm">
-            {theme === "light" ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line><line x1="18.36" y1="5.64" x2="19.78" y2="7.06"></line></svg>
-            )}
-          </button>
+          <div className="w-16"></div>
         </div>
 
         {/* ERFASSEN FORM */}
@@ -433,7 +428,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                       const diff = log.km - (log.startKm ?? log.km);
                       return (
                           <div key={log.id} onClick={() => handleEditClick(log)} className={`p-5 pl-6 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800/80 flex justify-between items-center cursor-pointer active:scale-95 transition relative overflow-hidden shrink-0 ${log.type === 'fuel' ? 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40 text-zinc-900 dark:text-zinc-100' : 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100'}`}>
-                              <div className="absolute left-0 top-0 bottom-0 w-2.5" style={{ backgroundColor: log.type === 'fuel' ? '#f97316' : (log.userColor || "#ccc") }} />
+                              <div className="absolute left-0 top-0 bottom-0 w-2.5" style={{ backgroundColor: log.type === 'fuel' ? '#f97316' : (userProfiles[log.userId]?.color || log.userColor || "#ccc") }} />
                               <div className="flex flex-col text-left">
                                   <span className="font-black text-gray-800 dark:text-zinc-100 text-lg leading-tight">
                                       {log.type === 'fuel' ? `GETANKT` : `${formatKm(log.startKm)} → ${formatKm(log.km)} km`}
@@ -468,20 +463,24 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                         <div className="flex flex-col gap-4 text-black dark:text-white">
                             <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-2xl border border-orange-100 dark:border-orange-900/30">
                                 <p className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase mb-3 tracking-widest underline underline-offset-4">Abrechnung (Gerundet 0.05)</p>
-                                {fuelSummary.map((s, i) => (
-                                    <div key={i} className="flex justify-between mb-2 border-b border-orange-200 dark:border-orange-900/40 pb-2 last:border-0 last:mb-0 text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }}></div>
-                                            <div className="flex flex-col text-left">
-                                                <span className="font-bold text-gray-700 dark:text-zinc-300">{s.name}</span>
-                                                <span className="text-[10px] text-gray-500 dark:text-zinc-500 font-bold">{formatKm(s.dist)} km</span>
+                                {fuelSummary && fuelSummary.map((s, i) => {
+                                    const matchedProfile = Object.values(userProfiles).find(p => p.displayName === s.name);
+                                    const displayColor = matchedProfile?.color || s.color || "#ccc";
+                                    return (
+                                        <div key={i} className="flex justify-between mb-2 border-b border-orange-200 dark:border-orange-900/40 pb-2 last:border-0 last:mb-0 text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: displayColor }}></div>
+                                                <div className="flex flex-col text-left">
+                                                    <span className="font-bold text-gray-700 dark:text-zinc-300">{s.name}</span>
+                                                    <span className="text-[10px] text-gray-500 dark:text-zinc-500 font-bold">{formatKm(s.dist)} km</span>
+                                                </div>
                                             </div>
+                                            <span className={`font-black ${s.debt > 0 ? 'text-green-700 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'}`}>
+                                                {s.debt > 0 ? `${s.debt.toFixed(2)}.-` : 'Info'}
+                                            </span>
                                         </div>
-                                        <span className={`font-black ${s.debt > 0 ? 'text-green-700 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'}`}>
-                                          {s.debt > 0 ? `${s.debt.toFixed(2)}.-` : 'Info'}
-                                        </span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                             <button onClick={() => setIsFuelModalOpen(false)} className="bg-black dark:bg-zinc-800 text-white font-black py-4 rounded-2xl uppercase italic active:scale-95 transition text-sm">Fertig</button>
                         </div>
@@ -501,7 +500,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                         <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
                             <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
                             <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: editingLog.type === 'fuel' ? '#f97316' : editingLog.userColor }}></div>
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: editingLog.type === 'fuel' ? '#f97316' : (userProfiles[editingLog.userId]?.color || editingLog.userColor || "#ccc") }}></div>
                                 <span className="font-black text-sm">{editingLog.userName}</span>
                             </div>
                         </div>
@@ -514,22 +513,26 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                 </div>
                                 {editingLog.fuelDetails && (
                                     <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-2xl p-4 shadow-sm">
-                                        <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest border-b border-gray-100 dark:border-zinc-850 pb-2 text-left text-black dark:text-white italic">Aufteilung</p>
+                                        <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest border-b border-gray-100 dark:border-zinc-800 pb-2 text-left text-black dark:text-white italic">Aufteilung</p>
                                         <div className="flex flex-col gap-3">
-                                            {editingLog.fuelDetails.map((s, i) => (
-                                                <div key={i} className="flex justify-between items-center">
-                                                    <div className="flex items-center gap-2 text-left">
-                                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }}></div>
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-gray-800 dark:text-zinc-300 text-sm">{s.name}</span>
-                                                            <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(s.dist)} km</span>
+                                            {editingLog.fuelDetails.map((s, i) => {
+                                                const matchedProfile = Object.values(userProfiles).find(p => p.displayName === s.name);
+                                                const displayColor = matchedProfile?.color || s.color || "#ccc";
+                                                return (
+                                                    <div key={i} className="flex justify-between items-center">
+                                                        <div className="flex items-center gap-2 text-left">
+                                                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }}></div>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-gray-800 dark:text-zinc-300 text-sm">{s.name}</span>
+                                                                <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(s.dist)} km</span>
+                                                            </div>
                                                         </div>
+                                                        <span className={`font-black ${s.debt > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'} text-sm`}>
+                                                            {s.debt > 0 ? `${s.debt.toFixed(2)}.-` : '0.00'}
+                                                        </span>
                                                     </div>
-                                                    <span className={`font-black ${s.debt > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'} text-sm`}>
-                                                      {s.debt > 0 ? `${s.debt.toFixed(2)}.-` : '0.00'}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}

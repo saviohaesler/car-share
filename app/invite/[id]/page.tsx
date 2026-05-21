@@ -9,9 +9,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const PRESET_COLORS = [
-  "#fbbf24", "#ef4444", "#ec4899", "#8b5cf6", "#3b82f6",
-  "#06b6d4", "#14b8a6", "#10b981", "#22c55e", "#84cc16",
-  "#eab308", "#f97316", "#6366f1", "#a855f7"
+  "#ef4444", // Red
+  "#f97316", // Orange
+  "#fbbf24", // Amber
+  "#10b981", // Green
+  "#06b6d4", // Cyan
+  "#3b82f6", // Blue
+  "#8b5cf6", // Violet
+  "#ec4899"  // Pink
 ];
 
 export default function InvitePage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +39,14 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
     } else {
       document.documentElement.classList.remove("dark");
     }
+    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
   }, []);
 
   useEffect(() => {

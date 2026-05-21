@@ -44,18 +44,16 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     } else {
       document.documentElement.classList.remove("dark");
     }
+    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
 
   // Toolbar & View States
   const [calendarTitle, setCalendarTitle] = useState("");
@@ -381,13 +379,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
           <h1 className="text-xl font-black italic uppercase text-gray-800 dark:text-zinc-100 tracking-tighter">
             {carName}
           </h1>
-          <button onClick={toggleTheme} className="p-2 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400 shadow-sm">
-            {theme === "light" ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line><line x1="18.36" y1="5.64" x2="19.78" y2="7.06"></line></svg>
-            )}
-          </button>
+          <div className="w-16"></div>
         </div>
 
         {/* CUSTOM TOOLBAR */}
@@ -574,8 +566,8 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
                   <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase">Beginn</span>
                   {isOwner ? (
                     <div className="flex gap-1">
-                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-850 p-2 rounded-xl text-sm font-black" />
-                      {!isAllDay && <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-850 p-2 rounded-xl text-sm font-black" />}
+                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-2 rounded-xl text-sm font-black" />
+                      {!isAllDay && <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-2 rounded-xl text-sm font-black" />}
                     </div>
                   ) : (
                     <div className="text-right font-black text-sm leading-tight">
@@ -588,8 +580,8 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
                   <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase">Ende</span>
                   {isOwner ? (
                     <div className="flex gap-1">
-                      <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-850 p-2 rounded-xl text-sm font-black" />
-                      {!isAllDay && <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-850 p-2 rounded-xl text-sm font-black" />}
+                      <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-2 rounded-xl text-sm font-black" />
+                      {!isAllDay && <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-2 rounded-xl text-sm font-black" />}
                     </div>
                   ) : (
                     <div className="text-right font-black text-sm leading-tight">

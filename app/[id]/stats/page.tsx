@@ -33,9 +33,14 @@ const MONTHS_DE = [
 ];
 
 const PRESET_COLORS = [
-  "#fbbf24", "#ef4444", "#ec4899", "#8b5cf6", "#3b82f6",
-  "#06b6d4", "#14b8a6", "#10b981", "#22c55e", "#84cc16",
-  "#eab308", "#f97316", "#6366f1", "#a855f7"
+  "#ef4444", // Red
+  "#f97316", // Orange
+  "#fbbf24", // Amber
+  "#10b981", // Green
+  "#06b6d4", // Cyan
+  "#3b82f6", // Blue
+  "#8b5cf6", // Violet
+  "#ec4899"  // Pink
 ];
 
 const formatKm = (km: number | string | undefined) => {
@@ -70,18 +75,16 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
     } else {
       document.documentElement.classList.remove("dark");
     }
+    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (u) => {
@@ -232,7 +235,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         distancePerUser[log.userId] = {
           name: log.userName,
           dist: 0,
-          color: log.userColor || "#3b82f6",
+          color: userProfiles[log.userId]?.color || log.userColor || "#3b82f6",
           count: 0
         };
       }
@@ -247,18 +250,20 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
           // Find matching user profile key to get color/ID if possible, or use display name
           const matchedUid = Object.keys(userProfiles).find(
             uid => userProfiles[uid].displayName === detail.name
-          ) || detail.name;
+          );
+          const key = matchedUid || detail.name;
+          const resolvedColor = (matchedUid && userProfiles[matchedUid]?.color) || detail.color || "#9ca3af";
 
-          if (!fuelDebtPerUser[matchedUid]) {
-            fuelDebtPerUser[matchedUid] = {
+          if (!fuelDebtPerUser[key]) {
+            fuelDebtPerUser[key] = {
               name: detail.name,
               debt: 0,
-              color: detail.color || "#9ca3af",
+              color: resolvedColor,
               dist: 0
             };
           }
-          fuelDebtPerUser[matchedUid].debt += detail.debt;
-          fuelDebtPerUser[matchedUid].dist += detail.dist;
+          fuelDebtPerUser[key].debt += detail.debt;
+          fuelDebtPerUser[key].dist += detail.dist;
         });
       }
     }
@@ -294,13 +299,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
           <h1 className="text-xl font-black italic uppercase text-gray-800 dark:text-zinc-100 tracking-tighter">
             {carName}
           </h1>
-          <button onClick={toggleTheme} className="p-2 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400 shadow-sm">
-            {theme === "light" ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line><line x1="18.36" y1="5.64" x2="19.78" y2="7.06"></line></svg>
-            )}
-          </button>
+          <div className="w-16"></div>
         </div>
 
         {/* TIME RANGE SELECTOR PILLS */}
@@ -596,7 +595,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
               <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
                 <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedLog.type === 'fuel' ? '#f97316' : selectedLog.userColor }}></div>
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedLog.type === 'fuel' ? '#f97316' : (userProfiles[selectedLog.userId]?.color || selectedLog.userColor || "#ccc") }}></div>
                   <span className="font-black text-sm text-black dark:text-zinc-200">{selectedLog.userName}</span>
                 </div>
               </div>
@@ -612,15 +611,19 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                       <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest border-b border-gray-100 dark:border-zinc-800 pb-2 text-left italic">Aufteilung</p>
                       <div className="flex flex-col gap-3">
                         {selectedLog.fuelDetails.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center">
+                          <div key={i} className="flex justify-between items-center bg-gray-50/50 dark:bg-zinc-950/30 p-2.5 rounded-xl border border-gray-100/50 dark:border-zinc-800/30">
                             <div className="flex items-center gap-2 text-left">
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }}></div>
+                              {(() => {
+                                const matchedProfile = Object.values(userProfiles).find(p => p.displayName === s.name);
+                                const displayColor = matchedProfile?.color || s.color || "#ccc";
+                                return <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }}></div>;
+                              })()}
                               <div className="flex flex-col">
-                                <span className="font-bold text-gray-800 dark:text-zinc-300 text-sm">{s.name}</span>
-                                <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(s.dist)} km</span>
+                                <span className="font-bold text-gray-800 dark:text-zinc-300 text-xs">{s.name}</span>
+                                <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(s.dist)} km</span>
                               </div>
                             </div>
-                            <span className={`font-black ${s.debt > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'} text-sm`}>
+                            <span className={`font-black ${s.debt > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'} text-xs`}>
                               {s.debt > 0 ? `${s.debt.toFixed(2)}.-` : '0.00'}
                             </span>
                           </div>

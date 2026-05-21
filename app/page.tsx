@@ -16,20 +16,14 @@ interface Car {
 }
 
 const PRESET_COLORS = [
-  "#fbbf24", // Amber
   "#ef4444", // Red
-  "#ec4899", // Pink
-  "#8b5cf6", // Violet
-  "#3b82f6", // Blue
-  "#06b6d4", // Cyan
-  "#14b8a6", // Teal
-  "#10b981", // Emerald
-  "#22c55e", // Green
-  "#84cc16", // Lime
-  "#eab308", // Yellow
   "#f97316", // Orange
-  "#6366f1", // Indigo
-  "#a855f7"  // Purple
+  "#fbbf24", // Amber
+  "#10b981", // Green
+  "#06b6d4", // Cyan
+  "#3b82f6", // Blue
+  "#8b5cf6", // Violet
+  "#ec4899"  // Pink
 ];
 
 export default function Home() {
@@ -58,6 +52,14 @@ export default function Home() {
     } else {
       document.documentElement.classList.remove("dark");
     }
+    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
   }, []);
 
   const toggleTheme = () => {
@@ -68,6 +70,11 @@ export default function Home() {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
+    }
+    // Dynamic theme-color meta synchronization
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute("content", nextTheme === "dark" ? "#09090b" : "#f9fafb");
     }
   };
 
@@ -120,7 +127,11 @@ export default function Home() {
   const saveProfile = async () => {
     if (!user) return;
     setIsSavingProfile(true);
-    await setDoc(doc(db, "users", user.uid), { displayName, color: userColor, uid: user.uid }, { merge: true });
+    await setDoc(doc(db, "users", user.uid), { 
+      displayName, 
+      color: userColor, 
+      uid: user.uid
+    }, { merge: true });
     setIsSavingProfile(false);
     setIsProfileModalOpen(false);
   };
@@ -192,14 +203,7 @@ export default function Home() {
       <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 max-w-md w-full text-center border border-gray-100 dark:border-zinc-800/80 my-auto">
         
         <div className="flex justify-between items-center mb-8 px-2">
-          {/* Theme Toggle Button */}
-          <button onClick={toggleTheme} className="p-2 bg-gray-50 dark:bg-zinc-800 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400">
-            {theme === "light" ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line><line x1="18.36" y1="5.64" x2="19.78" y2="7.06"></line></svg>
-            )}
-          </button>
+          <div className="w-10"></div>
           <h1 className="text-3xl font-black tracking-tight italic uppercase">
             {"CARSHARE".split("").map((char, index) => (
               <span key={index} style={{ color: PRESET_COLORS[index % PRESET_COLORS.length] }}>
@@ -278,7 +282,7 @@ export default function Home() {
             <div className="flex flex-col gap-6">
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Anzeigename</label>
-                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full p-4 rounded-xl bg-white dark:bg-zinc-900 border-2 border-gray-200 dark:border-zinc-800 font-black text-gray-900 dark:text-white mt-2 outline-none focus:border-blue-500 transition-colors shadow-sm" />
+                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border-2 border-gray-200 dark:border-zinc-800/80 font-black text-gray-900 dark:text-white mt-2 outline-none focus:border-blue-500 transition-colors shadow-sm" />
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Kalender Farbe</label>
@@ -286,6 +290,25 @@ export default function Home() {
                   {PRESET_COLORS.map(color => (
                     <button key={color} onClick={() => setUserColor(color)} className={`w-8 h-8 rounded-full transition-all ${userColor === color ? 'scale-110 ring-4 ring-offset-2 ring-gray-200 dark:ring-zinc-700' : 'opacity-50'}`} style={{ backgroundColor: color }} />
                   ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Darstellung</label>
+                <div className="flex justify-between items-center bg-gray-50 dark:bg-zinc-800/40 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/80 mt-2">
+                  <span className="text-sm font-bold text-gray-750 dark:text-zinc-300">
+                    {theme === "light" ? "Helles Design" : "Dunkles Design"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    className="p-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400 shadow-sm"
+                  >
+                    {theme === "light" ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.22" x2="5.64" y2="17.78"></line><line x1="18.36" y1="5.64" x2="19.78" y2="7.06"></line></svg>
+                    )}
+                  </button>
                 </div>
               </div>
               <div className="flex flex-col gap-2">
@@ -305,11 +328,11 @@ export default function Home() {
             <div className="flex flex-col gap-4">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1 tracking-widest">Name</label>
-                <input type="text" value={editCarData.name} onChange={(e) => setEditCarData({...editCarData, name: e.target.value})} className="w-full p-4 rounded-xl bg-white dark:bg-zinc-850 border-2 border-gray-200 dark:border-zinc-700 font-black text-gray-900 dark:text-white outline-none focus:border-blue-500 shadow-sm" />
+                <input type="text" value={editCarData.name} onChange={(e) => setEditCarData({...editCarData, name: e.target.value})} className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border-2 border-gray-200 dark:border-zinc-800/80 font-black text-gray-900 dark:text-white outline-none focus:border-blue-500 shadow-sm" />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1 tracking-widest">Start KM-Stand</label>
-                <input type="number" value={editCarData.initialKm} onChange={(e) => setEditCarData({...editCarData, initialKm: e.target.value})} className="w-full p-4 rounded-xl bg-white dark:bg-zinc-850 border-2 border-gray-200 dark:border-zinc-700 font-black text-gray-900 dark:text-white outline-none focus:border-blue-500 shadow-sm" />
+                <input type="number" value={editCarData.initialKm} onChange={(e) => setEditCarData({...editCarData, initialKm: e.target.value})} className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border-2 border-gray-200 dark:border-zinc-800/80 font-black text-gray-900 dark:text-white outline-none focus:border-blue-500 shadow-sm" />
               </div>
               <div className="flex flex-col gap-2 mt-4">
                 <button onClick={saveCarSettings} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition uppercase italic">Speichern</button>
