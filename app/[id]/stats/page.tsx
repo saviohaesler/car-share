@@ -540,43 +540,6 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
       </div>
 
-      {/* TAB BAR */}
-      <nav style={{ viewTransitionName: "bottom-nav" } as any} className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 pb-safe text-center">
-        <Link href={`/${resolvedParams.id}/log`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400 dark:text-zinc-500">
-          <div className="w-6 h-6 flex items-center justify-center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <line x1="10" y1="9" x2="8" y2="9" />
-            </svg>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest">Fahrten</span>
-        </Link>
-        <Link href={`/${resolvedParams.id}/calendar`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400 dark:text-zinc-500">
-          <div className="w-6 h-6 flex items-center justify-center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest">Kalender</span>
-        </Link>
-        <div className="flex-1 flex flex-col items-center justify-center gap-1 text-blue-600 dark:text-blue-400">
-          <div className="w-6 h-6 flex items-center justify-center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest">Statistik</span>
-        </div>
-      </nav>
-
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
