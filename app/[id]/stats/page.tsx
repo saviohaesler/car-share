@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
+import { Link } from "next-view-transitions";
 import { User } from "firebase/auth";
-import Link from "next/link";
 
 interface FuelDetail {
   name: string;
@@ -289,7 +289,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-y-auto transition-colors duration-200">
-      <div className="w-full max-w-md flex flex-col pb-28">
+      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-md flex flex-col pb-28">
         
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
@@ -541,7 +541,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* TAB BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 pb-safe text-center">
+      <nav style={{ viewTransitionName: "bottom-nav" } as any} className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 pb-safe text-center">
         <Link href={`/${resolvedParams.id}/log`} className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition text-gray-400 dark:text-zinc-500">
           <div className="w-6 h-6 flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -4,7 +4,7 @@ import { useEffect, useState, use, useRef } from "react";
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
 import { User } from "firebase/auth";
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 
 interface FuelDetail {
   name: string;
@@ -353,7 +353,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   return (
     <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
-      <div className="w-full max-w-md h-full flex flex-col pb-24">
+      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-md h-full flex flex-col pb-24">
         
         {/* HEADER EXAKT WIE IM KALENDER */}
         <div className="flex justify-between items-center mb-6">
@@ -543,7 +543,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         )}
 
         {/* TAB BAR */}
-        <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 pb-safe text-center">
+        <nav style={{ viewTransitionName: "bottom-nav" } as any} className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 pb-safe text-center">
           <div className="flex-1 flex flex-col items-center justify-center gap-1 active:scale-95 transition text-blue-600 dark:text-blue-400">
             <div className="w-6 h-6 flex items-center justify-center">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
