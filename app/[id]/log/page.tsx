@@ -69,9 +69,10 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
       document.documentElement.classList.remove("dark");
     }
     // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.querySelector('meta[name="theme-color"]');
+    let meta = document.getElementById("meta-theme-color");
     if (!meta) {
       meta = document.createElement("meta");
+      meta.id = "meta-theme-color";
       meta.setAttribute("name", "theme-color");
       document.head.appendChild(meta);
     }
@@ -179,31 +180,10 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         }
       } catch (error) { console.error(error); }
 
-      let isInitial = true;
       const q = query(collection(db, "cars", resolvedParams.id, "logs"), orderBy("timestamp", "desc"));
       unsubscribeLogs = onSnapshot(q, (snapshot) => {
         const fetchedLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as DriveLog));
         setLogs(fetchedLogs);
-        
-        // Listen to document changes to catch new additions
-        if (!isInitial) {
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === "added") {
-              const newLog = change.doc.data() as DriveLog;
-              const savedNotify = localStorage.getItem("notificationsEnabled") === "true";
-              if (savedNotify && newLog.userId && newLog.userId !== user?.uid) {
-                const driverName = userProfilesRef.current[newLog.userId]?.displayName || "Ein Mitglied";
-                if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-                  new Notification("Neuer Eintrag in CarShare", {
-                    body: `${driverName} hat eine Fahrt eingetragen: ${newLog.startKm || 0} km - ${newLog.km} km (${newLog.km - (newLog.startKm || 0)} km)`,
-                    icon: "/icon.png"
-                  });
-                }
-              }
-            }
-          });
-        }
-        isInitial = false;
         
         if (fetchedLogs.length > 0) {
             const lastDrive = fetchedLogs.find(l => l.km);
@@ -353,7 +333,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   return (
     <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
-      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-md h-full flex flex-col pb-24">
+      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-md h-full flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))]">
         
         {/* HEADER EXAKT WIE IM KALENDER */}
         <div className="flex justify-between items-center mb-6">

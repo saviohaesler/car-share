@@ -40,9 +40,10 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
       document.documentElement.classList.remove("dark");
     }
     // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.querySelector('meta[name="theme-color"]');
+    let meta = document.getElementById("meta-theme-color");
     if (!meta) {
       meta = document.createElement("meta");
+      meta.id = "meta-theme-color";
       meta.setAttribute("name", "theme-color");
       document.head.appendChild(meta);
     }
@@ -79,12 +80,13 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
         if (docSnap.exists()) {
           setCarName(docSnap.data().name);
         } else {
-          setCarName("Auto nicht gefunden");
-          setErrorMsg("Dieser Einladungslink scheint ungültig zu sein.");
+          // It doesn't exist, but due to rules it might just be hidden.
+          setCarName("einem geteilten Auto");
         }
       } catch (error) {
-        setCarName("Fehler");
-        setErrorMsg("Konnte das Auto nicht laden.");
+        // Permission denied is expected for guests or non-members
+        console.warn("Konnte Autodetails nicht abrufen (vermutlich fehlende Leserechte):", error);
+        setCarName("einem geteilten Auto");
       }
     };
     fetchCar();

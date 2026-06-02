@@ -14,10 +14,6 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f9fafb" },
-    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
-  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -44,8 +40,15 @@ export default function RootLayout({
       <html
         lang="de"
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+        suppressHydrationWarning
       >
         <head>
+          <meta
+            id="meta-theme-color"
+            name="theme-color"
+            content="#f9fafb"
+            suppressHydrationWarning
+          />
           <script
             dangerouslySetInnerHTML={{
               __html: `
@@ -53,10 +56,15 @@ export default function RootLayout({
                   try {
                     const savedTheme = localStorage.getItem("theme");
                     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-                    if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
+                    const isDark = savedTheme === "dark" || (!savedTheme && prefersDark);
+                    if (isDark) {
                       document.documentElement.classList.add("dark");
                     } else {
                       document.documentElement.classList.remove("dark");
+                    }
+                    const meta = document.getElementById("meta-theme-color");
+                    if (meta) {
+                      meta.setAttribute("content", isDark ? "#09090b" : "#f9fafb");
                     }
                   } catch (_) {}
                 })();

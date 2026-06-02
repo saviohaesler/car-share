@@ -2,7 +2,7 @@
 
 import React, { use } from "react";
 import { usePathname } from "next/navigation";
-import { Link } from "next-view-transitions";
+import Link from "next/link";
 
 export default function CarLayout({
   children,
@@ -29,7 +29,7 @@ export default function CarLayout({
       {/* Persistent Static Tab Bar */}
       <nav 
         style={{ viewTransitionName: "bottom-nav" } as any}
-        className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 pb-safe text-center"
+        className="fixed bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 text-center"
       >
         <Link 
           href={`/${resolvedParams.id}/log`} 

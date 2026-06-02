@@ -64,6 +64,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<DriveLog | null>(null);
+  const [tankBenchmark, setTankBenchmark] = useState<number>(75);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -76,9 +77,10 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
       document.documentElement.classList.remove("dark");
     }
     // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.querySelector('meta[name="theme-color"]');
+    let meta = document.getElementById("meta-theme-color");
     if (!meta) {
       meta = document.createElement("meta");
+      meta.id = "meta-theme-color";
       meta.setAttribute("name", "theme-color");
       document.head.appendChild(meta);
     }
@@ -281,6 +283,39 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
     .map(([userId, data]) => ({ userId, ...data }))
     .sort((a, b) => b.debt - a.debt);
 
+  // Current Tank Calculations (independent of time filter)
+  const currentTankDistancePerUser: Record<string, { name: string; dist: number; color: string }> = {};
+  let currentTankTotalDistance = 0;
+
+  for (const log of logs) {
+    if (log.type === "fuel") {
+      break; // Stop when we hit the most recent fuel event
+    }
+    if (log.type === "drive" || !log.type) {
+      const sKm = log.startKm ?? log.km;
+      const dist = log.km - sKm;
+      currentTankTotalDistance += dist;
+
+      if (!currentTankDistancePerUser[log.userId]) {
+        currentTankDistancePerUser[log.userId] = {
+          name: log.userName,
+          dist: 0,
+          color: userProfiles[log.userId]?.color || log.userColor || "#3b82f6"
+        };
+      }
+      currentTankDistancePerUser[log.userId].dist += dist;
+    }
+  }
+
+  const sortedCurrentTankList = Object.entries(currentTankDistancePerUser)
+    .map(([userId, data]) => {
+      const percentage = currentTankTotalDistance > 0 ? (data.dist / currentTankTotalDistance) * 100 : 0;
+      const rawCost = (percentage / 100) * tankBenchmark;
+      const estimatedCost = Math.round(rawCost * 20) / 20;
+      return { userId, ...data, percentage, estimatedCost };
+    })
+    .sort((a, b) => b.dist - a.dist);
+
   const yearsAvailable = Array.from(
     new Set([new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2])
   ).sort((a, b) => b - a);
@@ -289,7 +324,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-y-auto transition-colors duration-200">
-      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-md flex flex-col pb-28">
+      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-md flex flex-col pb-[calc(7rem+env(safe-area-inset-bottom))]">
         
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
@@ -413,6 +448,62 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
             <span className="text-2xl font-black italic tracking-tighter text-orange-600 dark:text-orange-400">{totalFuelCosts.toFixed(2)}.-</span>
             <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-1">{fuelingsCount} Tankstopps</span>
           </div>
+        </div>
+
+        {/* CURRENT TANK VISUALIZATION PANEL */}
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-zinc-800/80 mb-6 text-left">
+          <div className="flex justify-between items-center mb-5 border-b border-gray-50 dark:border-zinc-800/50 pb-2">
+            <h2 className="text-xs font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest italic">
+              Aktueller Tank
+            </h2>
+            <button 
+              onClick={() => {
+                const val = window.prompt("Neuen Richtwert eingeben (z.B. 75):", tankBenchmark.toString());
+                if (val !== null) {
+                  const parsed = parseFloat(val.replace(',', '.'));
+                  if (!isNaN(parsed) && parsed > 0) {
+                    setTankBenchmark(parsed);
+                  }
+                }
+              }}
+              className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 px-2 py-0.5 rounded-md active:scale-95 transition"
+            >
+              Richtwert: {tankBenchmark}.-
+            </button>
+          </div>
+          
+          {sortedCurrentTankList.length === 0 ? (
+            <p className="text-center text-sm font-black text-gray-300 dark:text-zinc-600 uppercase py-4 italic">
+              Noch keine Fahrten seit dem letzten Tanken
+            </p>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {sortedCurrentTankList.map((item) => (
+                <div key={item.userId} className="flex flex-col">
+                  <div className="flex justify-between items-center text-sm font-black text-gray-800 dark:text-zinc-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span>{item.name}</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="font-black italic text-gray-600 dark:text-zinc-400">
+                        ≈ {item.estimatedCost.toFixed(2)}.-
+                      </span>
+                      <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 mt-0.5">
+                        {formatKm(item.dist)} km <span className="font-bold opacity-80">({item.percentage.toFixed(0)}%)</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-100 dark:bg-zinc-950 h-3.5 rounded-full mt-2 overflow-hidden shadow-inner border border-gray-50 dark:border-zinc-800/20">
+                    <div 
+                      className="h-full rounded-full transition-all duration-700 ease-out" 
+                      style={{ width: `${item.percentage}%`, backgroundColor: item.color }} 
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* DISTANCE VISUALIZATION PANELS */}

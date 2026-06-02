@@ -45,9 +45,10 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
       document.documentElement.classList.remove("dark");
     }
     // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.querySelector('meta[name="theme-color"]');
+    let meta = document.getElementById("meta-theme-color");
     if (!meta) {
       meta = document.createElement("meta");
+      meta.id = "meta-theme-color";
       meta.setAttribute("name", "theme-color");
       document.head.appendChild(meta);
     }
@@ -115,7 +116,6 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     if (!user) return;
-    let isInitial = true;
     const q = query(collection(db, "cars", resolvedParams.id, "reservations"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const loadedEvents = snapshot.docs.map(doc => ({
@@ -128,34 +128,6 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         allDay: doc.data().allDay || false
       }));
       setEvents(loadedEvents);
-
-      // Listen to document changes to catch new additions
-      if (!isInitial) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === "added") {
-            const newRes = change.doc.data();
-            const savedNotify = localStorage.getItem("notificationsEnabled") === "true";
-            if (savedNotify && newRes.userId && newRes.userId !== user?.uid) {
-              const driverName = userProfilesRef.current[newRes.userId]?.displayName || newRes.userName || "Ein Mitglied";
-              if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-                const options: Intl.DateTimeFormatOptions = { 
-                  day: '2-digit', 
-                  month: '2-digit', 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                };
-                const startStr = newRes.start.toDate().toLocaleString('de-CH', options);
-                const endStr = newRes.end.toDate().toLocaleString('de-CH', options);
-                new Notification("Neue Reservierung in CarShare", {
-                  body: `${driverName} hat das Auto reserviert: ${newRes.title || 'Fahrt'} vom ${startStr} bis ${endStr}`,
-                  icon: "/icon.png"
-                });
-              }
-            }
-          }
-        });
-      }
-      isInitial = false;
     });
     return () => unsubscribe();
   }, [resolvedParams.id, user]);
@@ -403,7 +375,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
       `}</style>
 
       {/* FIX: Die weißen Karten-Styles (bg-white, shadow-lg, border) wurden entfernt, w-full bleibt für volle Breite */}
-      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-4xl h-full flex flex-col pb-24">
+      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-4xl h-full flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))]">
         
         {/* HEADER MIT ZURÜCK UND TITEL RECHTS */}
         <div className="flex justify-between items-center mb-6">
