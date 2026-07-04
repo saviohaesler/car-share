@@ -1,0 +1,238 @@
+rules_version = '2';
+
+// Serverseitige Zugriffsregeln für die CarShare-App.
+// Deployment: firebase deploy --only firestore:rules
+//
+// Grundprinzipien:
+// - Autos (und deren Fahrten/Reservierungen) sind nur für Mitglieder les-/schreibbar.
+// - Beitritt nur mit gültigem, nicht abgelaufenem Einladungs-Token (invites-Collection);
+//   der Beitritt kann ausschließlich die eigene UID zur Mitgliederliste hinzufügen.
+// - Owner-Rechte (Umbenennen, Mitglieder entfernen, Löschen) werden serverseitig erzwungen.
+// - Die users-Collection kann nicht komplett aufgelistet werden (kein Enumerieren
+//   aller Nutzer); einzelne Profile bleiben für angemeldete Nutzer lesbar, da die
+//   App Namen/Farben von Mitgliedern anzeigt.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ---------- Benutzerprofile ----------
+    match /users/{userId} {
+      allow get: if signedIn();
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['uid', 'displayName', 'color'])
+        && request.resource.data.uid == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.color is string
+        && request.resource.data.color.size() <= 32;
+
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid', 'displayName', 'color'])
+        && request.resource.data.uid == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.color is string
+        && request.resource.data.color.size() <= 32;
+
+      allow delete: if false;
+    }
+
+    // ---------- Einladungen ----------
+    match /invites/{inviteId} {
+      // Der zufällige, nicht erratbare Token in der URL ist die Zugangsberechtigung.
+      // Auch noch nicht angemeldete Gäste sehen so den Namen des Autos.
+      allow get: if true;
+      allow list: if false;
+
+      // Nur Mitglieder des Autos dürfen Einladungen erstellen, max. 31 Tage gültig
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['carId', 'carName', 'createdBy', 'createdAt', 'expiresAt'])
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.carId is string
+        && request.resource.data.carName is string
+        && request.resource.data.carName.size() <= 100
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt <= request.time + duration.value(31, 'd')
+        && request.auth.uid in get(/databases/$(database)/documents/cars/$(request.resource.data.carId)).data.members;
+
+      allow update: if false;
+
+      // Ersteller oder Auto-Owner können Einladungen zurückziehen
+      allow delete: if signedIn()
+        && (resource.data.createdBy == request.auth.uid
+            || request.auth.uid == get(/databases/$(database)/documents/cars/$(resource.data.carId)).data.ownerId);
+    }
+
+    // ---------- Autos ----------
+    match /cars/{carId} {
+      function isMember() {
+        return signedIn() && request.auth.uid in resource.data.members;
+      }
+      function isOwner() {
+        return signedIn() && request.auth.uid == resource.data.ownerId;
+      }
+      function membersAdded() {
+        return request.resource.data.members.toSet().difference(resource.data.members.toSet());
+      }
+      function membersRemoved() {
+        return resource.data.members.toSet().difference(request.resource.data.members.toSet());
+      }
+      function onlyMembersChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+          && request.resource.data.members is list;
+      }
+
+      // Beitritt über Einladungslink: nur mit gültigem, nicht abgelaufenem Token
+      // (wird vom Client als joinToken-Feld mitgesendet) und ausschließlich
+      // durch Hinzufügen der eigenen UID
+      function inviteData() {
+        return get(/databases/$(database)/documents/invites/$(request.resource.data.joinToken)).data;
+      }
+      function isTokenJoin() {
+        return signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'joinToken'])
+          && request.resource.data.members is list
+          && membersRemoved().size() == 0
+          && membersAdded().hasOnly([request.auth.uid])
+          && request.resource.data.joinToken is string
+          && exists(/databases/$(database)/documents/invites/$(request.resource.data.joinToken))
+          && inviteData().carId == carId
+          && inviteData().expiresAt is timestamp
+          && inviteData().expiresAt > request.time;
+      }
+
+      // Gruppe verlassen: darf ausschließlich die eigene UID entfernen (Owner nicht)
+      function isSelfLeave() {
+        return isMember()
+          && request.auth.uid != resource.data.ownerId
+          && onlyMembersChanged()
+          && membersAdded().size() == 0
+          && membersRemoved().hasOnly([request.auth.uid]);
+      }
+
+      // Owner: Name/KM ändern oder Mitglieder entfernen; ownerId ist unveränderlich
+      function isOwnerUpdate() {
+        return isOwner()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'initialKm', 'members'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100
+          && (!('initialKm' in request.resource.data) || (request.resource.data.initialKm is number && request.resource.data.initialKm >= 0))
+          && request.resource.data.members is list
+          && resource.data.ownerId in request.resource.data.members
+          && membersAdded().size() == 0;
+      }
+
+      allow get, list: if isMember();
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'initialKm', 'ownerId', 'members', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.members == [request.auth.uid]
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.initialKm is number
+        && request.resource.data.initialKm >= 0;
+
+      allow update: if isOwnerUpdate() || isTokenJoin() || isSelfLeave();
+
+      allow delete: if isOwner();
+
+      // ---------- Fahrten & Tankstopps ----------
+      match /logs/{logId} {
+        function carData() {
+          return get(/databases/$(database)/documents/cars/$(carId)).data;
+        }
+        function isCarMember() {
+          return signedIn() && request.auth.uid in carData().members;
+        }
+        function isCarOwner() {
+          return signedIn() && request.auth.uid == carData().ownerId;
+        }
+
+        allow read: if isCarMember();
+
+        allow create: if isCarMember()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.keys().hasOnly([
+               'userName', 'userColor', 'startKm', 'km', 'description',
+               'timestamp', 'userId', 'type', 'fuelAmount', 'fuelDetails'
+             ])
+          && request.resource.data.km is number
+          && request.resource.data.km >= 0
+          && (
+               (request.resource.data.type == 'drive'
+                 && request.resource.data.startKm is number
+                 && request.resource.data.startKm >= 0
+                 && request.resource.data.km >= request.resource.data.startKm)
+            || (request.resource.data.type == 'fuel'
+                 && request.resource.data.fuelAmount is number
+                 && request.resource.data.fuelAmount > 0
+                 && request.resource.data.fuelDetails is list)
+             );
+
+        // Die App bearbeitet Logs nie - nur anlegen und löschen
+        allow update: if false;
+
+        // Eigene Einträge löschen; der Owner darf beim Löschen des Autos aufräumen
+        allow delete: if signedIn()
+          && (resource.data.userId == request.auth.uid || isCarOwner());
+      }
+
+      // ---------- Reservierungen ----------
+      match /reservations/{reservationId} {
+        function carData() {
+          return get(/databases/$(database)/documents/cars/$(carId)).data;
+        }
+        function isCarMember() {
+          return signedIn() && request.auth.uid in carData().members;
+        }
+        function isCarOwner() {
+          return signedIn() && request.auth.uid == carData().ownerId;
+        }
+
+        allow read: if isCarMember();
+
+        allow create: if isCarMember()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.keys().hasOnly(['title', 'userName', 'start', 'end', 'userId', 'allDay'])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 200
+          && request.resource.data.start is timestamp
+          && request.resource.data.end is timestamp
+          && request.resource.data.end > request.resource.data.start
+          && request.resource.data.allDay is bool;
+
+        // Nur der Ersteller darf seine Reservierung ändern; userId bleibt unveränderlich
+        allow update: if isCarMember()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'start', 'end', 'allDay'])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 200
+          && request.resource.data.start is timestamp
+          && request.resource.data.end is timestamp
+          && request.resource.data.end > request.resource.data.start
+          && request.resource.data.allDay is bool;
+
+        allow delete: if signedIn()
+          && (resource.data.userId == request.auth.uid || isCarOwner());
+      }
+    }
+
+    // Alles andere ist gesperrt
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

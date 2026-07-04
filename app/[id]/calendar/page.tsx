@@ -6,9 +6,12 @@ import { collection, addDoc, onSnapshot, query, doc, deleteDoc, updateDoc, getDo
 import { db, auth } from "../../../lib/firebase";
 import { Link } from "next-view-transitions";
 import { User } from "firebase/auth";
+import { useUserProfiles } from "../../../lib/useUserProfiles";
+import { useTheme } from "../../../lib/useTheme";
 
 // FULLCALENDAR IMPORTS
 import FullCalendar from '@fullcalendar/react';
+import type { DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -31,30 +34,8 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   const [user, setUser] = useState<User | null>(null);
   const [carName, setCarName] = useState("Lade...");
   const [events, setEvents] = useState<Reservation[]>([]);
-  const [userProfiles, setUserProfiles] = useState<Record<string, {displayName: string, color: string}>>({});
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
-    setTheme(initialTheme);
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.getElementById("meta-theme-color");
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.id = "meta-theme-color";
-      meta.setAttribute("name", "theme-color");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
-  }, []);
-
+  const userProfiles = useUserProfiles([user?.uid, ...events.map((e) => e.userId)]);
+  useTheme();
 
   // Toolbar & View States
   const [calendarTitle, setCalendarTitle] = useState("");
@@ -83,15 +64,20 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         window.location.href = "/";
       } else {
         setUser(u);
-        const carDoc = await getDoc(doc(db, "cars", resolvedParams.id));
-        if (carDoc.exists()) {
-          setCarName(carDoc.data().name || "Auto");
-          const members = carDoc.data().members || [];
-          if (!members.includes(u.uid)) {
-            alert("Du bist kein Mitglied dieses Teams.");
+        try {
+          const carDoc = await getDoc(doc(db, "cars", resolvedParams.id));
+          if (carDoc.exists()) {
+            setCarName(carDoc.data().name || "Auto");
+            const members = carDoc.data().members || [];
+            if (!members.includes(u.uid)) {
+              alert("Du bist kein Mitglied dieses Teams.");
+              window.location.href = "/";
+            }
+          } else {
             window.location.href = "/";
           }
-        } else {
+        } catch (error) {
+          console.error(error);
           window.location.href = "/";
         }
       }
@@ -101,34 +87,28 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     if (!user) return;
-    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
-      const profiles: any = {};
-      snapshot.docs.forEach(doc => { profiles[doc.id] = doc.data(); });
-      setUserProfiles(profiles);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  const userProfilesRef = useRef(userProfiles);
-  useEffect(() => {
-    userProfilesRef.current = userProfiles;
-  }, [userProfiles]);
-
-  useEffect(() => {
-    if (!user) return;
     const q = query(collection(db, "cars", resolvedParams.id, "reservations"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedEvents = snapshot.docs.map(doc => ({
-        id: doc.id,
-        title: doc.data().title || "Fahrt",
-        userName: doc.data().userName || "Unbekannt",
-        start: doc.data().start.toDate(), 
-        end: doc.data().end.toDate(),
-        userId: doc.data().userId,
-        allDay: doc.data().allDay || false
-      }));
+      // Einzelne kaputte Dokumente (fehlendes start/end) überspringen,
+      // statt den ganzen Listener crashen zu lassen
+      const loadedEvents = snapshot.docs.flatMap(doc => {
+        const data = doc.data();
+        if (typeof data.start?.toDate !== "function" || typeof data.end?.toDate !== "function") {
+          console.warn("Reservierung mit ungültigen Daten übersprungen:", doc.id);
+          return [];
+        }
+        return [{
+          id: doc.id,
+          title: data.title || "Fahrt",
+          userName: data.userName || "Unbekannt",
+          start: data.start.toDate(),
+          end: data.end.toDate(),
+          userId: data.userId,
+          allDay: data.allDay || false
+        }];
+      });
       setEvents(loadedEvents);
-    });
+    }, (error) => console.warn("Reservierungen konnten nicht geladen werden:", error));
     return () => unsubscribe();
   }, [resolvedParams.id, user]);
 
@@ -166,7 +146,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   };
 
   // FullCalendar Handler
-  const handleSelectSlot = (selectInfo: any) => {
+  const handleSelectSlot = (selectInfo: DateSelectArg) => {
     if (!user) return;
     
     // Stop propagation to prevent immediate closure or double-trigger issues
@@ -204,13 +184,14 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     }, 50);
   };
 
-  const handleSelectEvent = (clickInfo: any) => {
+  const handleSelectEvent = (clickInfo: EventClickArg) => {
     const ev = clickInfo.event;
+    if (!ev.start) return;
     setEditingEvent({
       id: ev.id,
       title: ev.title,
       start: ev.start,
-      end: ev.end,
+      end: ev.end ?? ev.start,
       userId: ev.extendedProps.userId,
       userName: ev.extendedProps.userName,
       allDay: ev.allDay
@@ -235,18 +216,22 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || (editingEvent?.userId && editingEvent.userId !== user.uid)) return;
-    const start = new Date(`${startDate}T${startTime}`);
+    let start = new Date(`${startDate}T${startTime}`);
     let end = new Date(`${endDate}T${endTime}`);
-    
+
     if (isAllDay) {
         if (endDate < startDate) { alert("Das Enddatum darf nicht vor dem Beginn liegen!"); return; }
-        start.setHours(0,0,0,0);
-        end = new Date(endDate);
+        // Lokale Mitternacht verwenden ("yyyy-MM-dd" allein würde als UTC geparst)
+        start = new Date(`${startDate}T00:00`);
+        end = new Date(`${endDate}T00:00`);
         end.setDate(end.getDate() + 1);
-        end.setHours(0,0,0,0);
-    } else {
-        if (end <= start) { alert("Ende muss nach Beginn liegen!"); return; }
     }
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        alert("Bitte gültiges Datum und Uhrzeit angeben!");
+        return;
+    }
+    if (!isAllDay && end <= start) { alert("Ende muss nach Beginn liegen!"); return; }
 
     const currentName = userProfiles[user.uid]?.displayName || user.displayName || "Unbekannt";
 
@@ -375,7 +360,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
       `}</style>
 
       {/* FIX: Die weißen Karten-Styles (bg-white, shadow-lg, border) wurden entfernt, w-full bleibt für volle Breite */}
-      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-4xl h-full flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))]">
+      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-4xl h-full flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))]">
         
         {/* HEADER MIT ZURÜCK UND TITEL RECHTS */}
         <div className="flex justify-between items-center mb-6">

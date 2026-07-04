@@ -27,8 +27,8 @@ export default function CarLayout({
       </div>
 
       {/* Persistent Static Tab Bar */}
-      <nav 
-        style={{ viewTransitionName: "bottom-nav" } as any}
+      <nav
+        style={{ viewTransitionName: "bottom-nav" }}
         className="fixed bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 text-center"
       >
         <Link 

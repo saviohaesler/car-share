@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState, use, useRef } from "react";
-import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
+import { useEffect, useState, use } from "react";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
 import { Link } from "next-view-transitions";
 import { User } from "firebase/auth";
+import { useUserProfiles } from "../../../lib/useUserProfiles";
+import { useTheme } from "../../../lib/useTheme";
 
 interface FuelDetail {
   name: string;
+  userId?: string;
   dist: number;
   debt: number;
   color?: string;
@@ -17,10 +20,10 @@ interface DriveLog {
   id: string;
   userName: string;
   userColor?: string;
-  km: number;       
-  startKm?: number; 
+  km: number;
+  startKm?: number;
   description: string;
-  timestamp: any;
+  timestamp: Timestamp | null;
   userId: string;
   type?: "drive" | "fuel";
   fuelAmount?: number;
@@ -52,41 +55,22 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
   const resolvedParams = use(params);
   const [user, setUser] = useState<User | null>(null);
   const [carName, setCarName] = useState("Lade...");
-  const [initialKm, setInitialKm] = useState<number>(0);
   const [logs, setLogs] = useState<DriveLog[]>([]);
-  const [userProfiles, setUserProfiles] = useState<Record<string, { displayName: string, color: string }>>({});
+  const userProfiles = useUserProfiles([
+    user?.uid,
+    ...logs.map((l) => l.userId),
+    ...logs.flatMap((l) => l.fuelDetails?.map((d) => d.userId) ?? []),
+  ]);
   
   // Date State for Filter
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
   const [timeRange, setTimeRange] = useState<"1m" | "3m" | "6m" | "12m" | "all">("1m");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useTheme();
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<DriveLog | null>(null);
   const [tankBenchmark, setTankBenchmark] = useState<number>(75);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
-    setTheme(initialTheme);
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.getElementById("meta-theme-color");
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.id = "meta-theme-color";
-      meta.setAttribute("name", "theme-color");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
-  }, []);
-
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (u) => {
@@ -108,16 +92,20 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
           }, { merge: true });
         }
 
-        const carDoc = await getDoc(doc(db, "cars", resolvedParams.id));
-        if (carDoc.exists()) {
-          setCarName(carDoc.data().name || "Auto");
-          setInitialKm(carDoc.data().initialKm || 0);
-          const members = carDoc.data().members || [];
-          if (!members.includes(u.uid)) {
-            alert("Du bist kein Mitglied dieses Teams.");
+        try {
+          const carDoc = await getDoc(doc(db, "cars", resolvedParams.id));
+          if (carDoc.exists()) {
+            setCarName(carDoc.data().name || "Auto");
+            const members = carDoc.data().members || [];
+            if (!members.includes(u.uid)) {
+              alert("Du bist kein Mitglied dieses Teams.");
+              window.location.href = "/";
+            }
+          } else {
             window.location.href = "/";
           }
-        } else {
+        } catch (error) {
+          console.error(error);
           window.location.href = "/";
         }
       }
@@ -127,21 +115,11 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   useEffect(() => {
     if (!user) return;
-    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
-      const profiles: any = {};
-      snapshot.docs.forEach(doc => { profiles[doc.id] = doc.data(); });
-      setUserProfiles(profiles);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
     const q = query(collection(db, "cars", resolvedParams.id, "logs"), orderBy("timestamp", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as DriveLog));
       setLogs(fetchedLogs);
-    });
+    }, (error) => console.warn("Logs konnten nicht geladen werden:", error));
     return () => unsubscribe();
   }, [resolvedParams.id, user]);
 
@@ -174,7 +152,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
   // Filter logs for the selected time range
   const filteredLogs = logs.filter(log => {
     if (!log.timestamp) return false;
-    const logDate = log.timestamp.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+    const logDate = log.timestamp.toDate();
     
     if (timeRange === "1m") {
       return logDate.getFullYear() === selectedDate.getFullYear() && 
@@ -196,11 +174,12 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   const getRangeLabel = () => {
     const today = new Date();
-    const start = new Date(today);
-    if (timeRange === "3m") start.setMonth(today.getMonth() - 2);
-    else if (timeRange === "6m") start.setMonth(today.getMonth() - 5);
-    else if (timeRange === "12m") start.setMonth(today.getMonth() - 11);
-    
+    // Auf den Monatsersten normieren, sonst springt setMonth am 29.-31. in den falschen Monat
+    let start = new Date(today.getFullYear(), today.getMonth(), 1);
+    if (timeRange === "3m") start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+    else if (timeRange === "6m") start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+    else if (timeRange === "12m") start = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+
     if (timeRange === "all") {
       return "Gesamte Historie (Alle Fahrten)";
     }
@@ -218,15 +197,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
   const distancePerUser: Record<string, { name: string; dist: number; color: string; count: number }> = {};
   const fuelDebtPerUser: Record<string, { name: string; debt: number; color: string; dist: number }> = {};
 
-  // Initialize members in stats so everyone in the car shows up, even with 0 km
-  Object.keys(userProfiles).forEach(uid => {
-    // Only add if they are listed as a member in userProfiles (or we can populate dynamically from logs)
-    // To make it simple, we initialize from active drive logs & profiles
-  });
-
   filteredLogs.forEach(log => {
-    const logDate = log.timestamp.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
-    
     if (log.type === "drive" || !log.type) {
       drivesCount++;
       const sKm = log.startKm ?? log.km;
@@ -249,8 +220,9 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
       if (log.fuelDetails) {
         log.fuelDetails.forEach(detail => {
-          // Find matching user profile key to get color/ID if possible, or use display name
-          const matchedUid = Object.keys(userProfiles).find(
+          // Bevorzugt über die gespeicherte UID zuordnen; Namens-Matching nur
+          // als Fallback für Alt-Daten ohne userId-Feld
+          const matchedUid = detail.userId || Object.keys(userProfiles).find(
             uid => userProfiles[uid].displayName === detail.name
           );
           const key = matchedUid || detail.name;
@@ -324,7 +296,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-y-auto transition-colors duration-200">
-      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-md flex flex-col pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md flex flex-col pb-[calc(7rem+env(safe-area-inset-bottom))]">
         
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
@@ -339,16 +311,16 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
         {/* TIME RANGE SELECTOR PILLS */}
         <div className="flex bg-white dark:bg-zinc-900 p-1 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 mb-4 shrink-0">
-          {[
+          {([
             { id: "1m", label: "1 Mon." },
             { id: "3m", label: "3 Mon." },
             { id: "6m", label: "6 Mon." },
             { id: "12m", label: "12 Mon." },
             { id: "all", label: "Gesamt" },
-          ].map((r) => (
+          ] as const).map((r) => (
             <button
               key={r.id}
-              onClick={() => setTimeRange(r.id as any)}
+              onClick={() => setTimeRange(r.id)}
               className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-tighter rounded-xl transition active:scale-95 ${
                 timeRange === r.id
                   ? "bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-md"
@@ -579,7 +551,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         {/* MONTH DETAILED FEED / HISTORY */}
         <div className="flex flex-col text-left">
           <h2 className="text-xs font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest ml-4 mb-4 italic">
-            Protokolle in {MONTHS_DE[selectedDate.getMonth()]}
+            {timeRange === "1m" ? `Protokolle in ${MONTHS_DE[selectedDate.getMonth()]}` : "Protokolle im Zeitraum"}
           </h2>
           <div className="flex flex-col gap-3">
             {filteredLogs.length === 0 ? (
@@ -588,7 +560,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
               </div>
             ) : (
               filteredLogs.map((log) => {
-                const logDate = log.timestamp.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+                const logDate = log.timestamp!.toDate();
                 const diff = log.km - (log.startKm ?? log.km);
                 return (
                   <div 
@@ -668,7 +640,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                           <div key={i} className="flex justify-between items-center bg-gray-50/50 dark:bg-zinc-950/30 p-2.5 rounded-xl border border-gray-100/50 dark:border-zinc-800/30">
                             <div className="flex items-center gap-2 text-left">
                               {(() => {
-                                const matchedProfile = Object.values(userProfiles).find(p => p.displayName === s.name);
+                                const matchedProfile = (s.userId ? userProfiles[s.userId] : undefined) || Object.values(userProfiles).find(p => p.displayName === s.name);
                                 const displayColor = matchedProfile?.color || s.color || "#ccc";
                                 return <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }}></div>;
                               })()}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ViewTransitions } from "next-view-transitions";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,7 +17,6 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
 };
 
@@ -49,30 +49,30 @@ export default function RootLayout({
             content="#f9fafb"
             suppressHydrationWarning
           />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function() {
-                  try {
-                    const savedTheme = localStorage.getItem("theme");
-                    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-                    const isDark = savedTheme === "dark" || (!savedTheme && prefersDark);
-                    if (isDark) {
-                      document.documentElement.classList.add("dark");
-                    } else {
-                      document.documentElement.classList.remove("dark");
-                    }
-                    const meta = document.getElementById("meta-theme-color");
-                    if (meta) {
-                      meta.setAttribute("content", isDark ? "#09090b" : "#f9fafb");
-                    }
-                  } catch (_) {}
-                })();
-              `,
-            }}
-          />
         </head>
-        <body className="min-h-full flex flex-col">{children}</body>
+        <body className="min-h-full flex flex-col">
+          {children}
+          <Script id="theme-init" strategy="beforeInteractive">
+            {`
+              (function() {
+                try {
+                  const savedTheme = localStorage.getItem("theme");
+                  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                  const isDark = savedTheme === "dark" || (!savedTheme && prefersDark);
+                  if (isDark) {
+                    document.documentElement.classList.add("dark");
+                  } else {
+                    document.documentElement.classList.remove("dark");
+                  }
+                  const meta = document.getElementById("meta-theme-color");
+                  if (meta) {
+                    meta.setAttribute("content", isDark ? "#09090b" : "#f9fafb");
+                  }
+                } catch (_) {}
+              })();
+            `}
+          </Script>
+        </body>
       </html>
     </ViewTransitions>
   );

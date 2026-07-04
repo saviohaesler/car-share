@@ -7,6 +7,7 @@ import { db, auth, googleProvider } from "../../../lib/firebase";
 import { signInWithPopup, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTheme } from "../../../lib/useTheme";
 
 const PRESET_COLORS = [
   "#ef4444", // Red
@@ -24,31 +25,11 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
   
   const [carName, setCarName] = useState("Lade...");
+  const [carId, setCarId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
-    setTheme(initialTheme);
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.getElementById("meta-theme-color");
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.id = "meta-theme-color";
-      meta.setAttribute("name", "theme-color");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
-  }, []);
+  useTheme();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -72,24 +53,36 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
   }, []);
 
   useEffect(() => {
-    const fetchCar = async () => {
+    const fetchInvite = async () => {
+      // Neues Modell: Der Link enthält einen zufälligen Einladungs-Token
       try {
-        const docRef = doc(db, "cars", resolvedParams.id);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setCarName(docSnap.data().name);
-        } else {
-          // It doesn't exist, but due to rules it might just be hidden.
-          setCarName("einem geteilten Auto");
+        const inviteSnap = await getDoc(doc(db, "invites", resolvedParams.id));
+        if (inviteSnap.exists()) {
+          const invite = inviteSnap.data();
+          if (invite.expiresAt?.toDate && invite.expiresAt.toDate() < new Date()) {
+            setErrorMsg("Diese Einladung ist abgelaufen. Bitte einen neuen Link anfordern.");
+            return;
+          }
+          setCarId(invite.carId);
+          setCarName(invite.carName || "einem geteilten Auto");
+          return;
         }
       } catch (error) {
+        console.warn("Einladung konnte nicht geladen werden:", error);
+      }
+
+      // Legacy-Link (/invite/{carId}): Beitritt ist damit nicht mehr möglich,
+      // aber bestehende Mitglieder werden weiterhin korrekt weitergeleitet.
+      setCarId(resolvedParams.id);
+      try {
+        const docSnap = await getDoc(doc(db, "cars", resolvedParams.id));
+        setCarName(docSnap.exists() ? docSnap.data().name : "einem geteilten Auto");
+      } catch {
         // Permission denied is expected for guests or non-members
-        console.warn("Konnte Autodetails nicht abrufen (vermutlich fehlende Leserechte):", error);
         setCarName("einem geteilten Auto");
       }
     };
-    fetchCar();
+    fetchInvite();
   }, [resolvedParams.id]);
 
   const handleLogin = async () => {
@@ -98,20 +91,26 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
   };
 
   const handleJoinCar = async () => {
-    if (!user) return;
+    if (!user || !carId) return;
     setIsJoining(true);
 
     try {
-      const docRef = doc(db, "cars", resolvedParams.id);
-      await updateDoc(docRef, {
-        members: arrayUnion(user.uid)
-      });
-      
+      // Bereits Mitglied? Dann ohne Schreibzugriff direkt weiterleiten
+      const carSnap = await getDoc(doc(db, "cars", carId)).catch(() => null);
+      if (!(carSnap?.exists() && (carSnap.data().members || []).includes(user.uid))) {
+        // Der Token wird mitgesendet, damit die Firestore-Regeln die
+        // Einladung serverseitig prüfen können (gültig & nicht abgelaufen)
+        await updateDoc(doc(db, "cars", carId), {
+          members: arrayUnion(user.uid),
+          joinToken: resolvedParams.id
+        });
+      }
+
       // KORRIGIERTER LINK: Direkt zum Log im ID-Ordner
-      router.push(`/${resolvedParams.id}/log`);
+      router.push(`/${carId}/log`);
     } catch (error) {
       console.error("Fehler beim Beitreten:", error);
-      setErrorMsg("Fehler beim Beitreten. Keine Berechtigung?");
+      setErrorMsg("Fehler beim Beitreten. Der Link ist ungültig oder abgelaufen.");
     }
     setIsJoining(false);
   };

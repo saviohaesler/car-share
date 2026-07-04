@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState, use, useRef } from "react";
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
+import { useEffect, useState, use } from "react";
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, getDocs, deleteDoc, setDoc, Timestamp } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
 import { User } from "firebase/auth";
 import { Link } from "next-view-transitions";
+import { useUserProfiles } from "../../../lib/useUserProfiles";
+import { useTheme } from "../../../lib/useTheme";
 
 interface FuelDetail {
   name: string;
+  userId?: string;
   dist: number;
   debt: number;
   color?: string;
@@ -17,10 +20,10 @@ interface DriveLog {
   id: string;
   userName: string;
   userColor?: string;
-  km: number;       
-  startKm?: number; 
+  km: number;
+  startKm?: number;
   description: string;
-  timestamp: any;
+  timestamp: Timestamp | null;
   userId: string;
   type?: "drive" | "fuel";
   fuelAmount?: number;
@@ -54,30 +57,13 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
   const [startKm, setStartKm] = useState("");
   const [endKm, setEndKm] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
+  const userProfiles = useUserProfiles([
+    user?.uid,
+    ...logs.map((l) => l.userId),
+    ...logs.flatMap((l) => l.fuelDetails?.map((d) => d.userId) ?? []),
+  ]);
 
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
-    setTheme(initialTheme);
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.getElementById("meta-theme-color");
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.id = "meta-theme-color";
-      meta.setAttribute("name", "theme-color");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
-  }, []);
+  useTheme();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<DriveLog | null>(null);
@@ -152,33 +138,31 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     if (!user) return;
-    return onSnapshot(collection(db, "users"), (snapshot) => {
-      const profiles: any = {};
-      snapshot.docs.forEach(doc => { profiles[doc.id] = doc.data(); });
-      setUserProfiles(profiles);
-    });
-  }, [user]);
-
-  const userProfilesRef = useRef(userProfiles);
-  useEffect(() => {
-    userProfilesRef.current = userProfiles;
-  }, [userProfiles]);
-
-  useEffect(() => {
-    if (!user) return;
     let unsubscribeLogs: () => void;
 
     const loadData = async () => {
       let initKm = 0;
-      
+
       try {
         const docSnap = await getDoc(doc(db, "cars", resolvedParams.id));
-        if (docSnap.exists()) {
-          setCarName(docSnap.data().name);
-          initKm = docSnap.data().initialKm || 0;
-          setInitialKm(initKm);
+        if (!docSnap.exists()) {
+          window.location.href = "/";
+          return;
         }
-      } catch (error) { console.error(error); }
+        const members: string[] = docSnap.data().members || [];
+        if (!members.includes(user.uid)) {
+          alert("Du bist kein Mitglied dieses Teams.");
+          window.location.href = "/";
+          return;
+        }
+        setCarName(docSnap.data().name);
+        initKm = docSnap.data().initialKm || 0;
+        setInitialKm(initKm);
+      } catch (error) {
+        console.error(error);
+        window.location.href = "/";
+        return;
+      }
 
       const q = query(collection(db, "cars", resolvedParams.id, "logs"), orderBy("timestamp", "desc"));
       unsubscribeLogs = onSnapshot(q, (snapshot) => {
@@ -196,7 +180,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
             setStartKm(prev => prev === "" ? initKm.toString() : prev);
             setEndKm(prev => prev === "" ? initKm.toString() : prev);
         }
-      });
+      }, (error) => console.warn("Logs konnten nicht geladen werden:", error));
     };
 
     loadData();
@@ -219,6 +203,9 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     const sKm = Math.floor(Number(startKm));
     const eKm = Math.floor(Number(endKm));
 
+    if (isNaN(sKm) || isNaN(eKm)) {
+        return alert("Bitte gültige KM-Stände eingeben!");
+    }
     if (sKm < currentMax) {
         return alert(`Der Start-KM Stand (${formatKm(sKm)}) darf nicht kleiner sein als der bisherige Höchststand von ${formatKm(currentMax)} km.`);
     }
@@ -247,13 +234,26 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
   const handleFuelSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !userProfile || !fuelPrice || isSaving) return;
+    const price = Number(fuelPrice);
+    if (!(price > 0)) {
+      alert("Bitte einen Betrag grösser als 0 eingeben!");
+      return;
+    }
     setIsSaving(true);
 
-    const lastFuelIndex = logs.findIndex(l => l.type === "fuel");
-    const relevantLogs = (lastFuelIndex === -1 ? logs : logs.slice(0, lastFuelIndex)).reverse();
-    
-    const userStats: { [key: string]: { name: string, totalDist: number, color: string } } = {};
-    let lastKnownKm = lastFuelIndex !== -1 ? logs[lastFuelIndex].km : (relevantLogs.length > 0 ? relevantLogs[0].startKm || relevantLogs[0].km : initialKm);
+    // Frisch aus Firestore lesen, damit parallel erfasste Fahrten oder
+    // Tankstopps anderer Mitglieder nicht auf veraltetem State abgerechnet werden
+    let currentLogs = logs;
+    try {
+      const freshSnap = await getDocs(query(collection(db, "cars", resolvedParams.id, "logs"), orderBy("timestamp", "desc")));
+      currentLogs = freshSnap.docs.map(d => ({ id: d.id, ...d.data() } as DriveLog));
+    } catch (error) { console.error(error); }
+
+    const lastFuelIndex = currentLogs.findIndex(l => l.type === "fuel");
+    const relevantLogs = (lastFuelIndex === -1 ? currentLogs : currentLogs.slice(0, lastFuelIndex)).reverse();
+
+    const userStats: { [key: string]: { name: string, userId: string, totalDist: number, color: string } } = {};
+    let lastKnownKm = lastFuelIndex !== -1 ? currentLogs[lastFuelIndex].km : (relevantLogs.length > 0 ? (relevantLogs[0].startKm ?? relevantLogs[0].km) : initialKm);
     let gapDist = 0;
 
     relevantLogs.forEach(log => {
@@ -261,14 +261,15 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
       if (sKm > lastKnownKm) {
         gapDist += (sKm - lastKnownKm);
       }
-      
+
       if (log.type === "drive" || !log.type) {
         const dist = log.km - sKm;
         if (!userStats[log.userId]) {
-          userStats[log.userId] = { 
-            name: log.userName, 
-            totalDist: 0, 
-            color: userProfiles[log.userId]?.color || log.userColor || "#ccc" 
+          userStats[log.userId] = {
+            name: log.userName,
+            userId: log.userId,
+            totalDist: 0,
+            color: userProfiles[log.userId]?.color || log.userColor || "#ccc"
           };
         }
         userStats[log.userId].totalDist += dist;
@@ -283,10 +284,11 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
       setIsSaving(false); return;
     }
 
-    const pricePerKm = Number(fuelPrice) / totalUserDist;
+    const pricePerKm = price / totalUserDist;
 
     const summary: FuelDetail[] = Object.values(userStats).map(u => ({
       name: u.name,
+      userId: u.userId,
       dist: u.totalDist,
       debt: roundTo05(u.totalDist * pricePerKm),
       color: u.color
@@ -307,7 +309,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         userColor: userProfile.color,
         km: Math.max(...relevantLogs.map(d => d.km), lastKnownKm),
         description: `Tankstopp: ${fuelPrice}.-`,
-        fuelAmount: Number(fuelPrice),
+        fuelAmount: price,
         fuelDetails: summary,
         timestamp: serverTimestamp(),
         userId: user.uid,
@@ -333,7 +335,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   return (
     <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
-      <div style={{ viewTransitionName: "page-content" } as any} className="w-full max-w-md h-full flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))]">
+      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md h-full flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))]">
         
         {/* HEADER EXAKT WIE IM KALENDER */}
         <div className="flex justify-between items-center mb-6">
@@ -422,7 +424,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                     <h2 className="text-xl font-black mb-4 text-center italic uppercase tracking-tighter text-black dark:text-white">Tanken</h2>
                     {!fuelSummary ? (
                         <form onSubmit={handleFuelSubmit} className="flex flex-col gap-4">
-                            <input type="number" step="0.01" placeholder="Betrag in CHF" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} className="bg-gray-100 dark:bg-zinc-950 p-4 rounded-xl w-full font-black text-center text-2xl text-black dark:text-white border-2 border-orange-200 dark:border-orange-900 outline-none" required />
+                            <input type="number" step="0.01" min="0.01" placeholder="Betrag in CHF" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} className="bg-gray-100 dark:bg-zinc-950 p-4 rounded-xl w-full font-black text-center text-2xl text-black dark:text-white border-2 border-orange-200 dark:border-orange-900 outline-none" required />
                             <button type="submit" className="bg-orange-500 text-white font-black py-4 rounded-2xl uppercase italic tracking-widest active:scale-95 transition text-sm shadow-lg shadow-orange-500/20">Berechnen & Abrechnen</button>
                             <button type="button" onClick={() => setIsFuelModalOpen(false)} className="text-gray-400 dark:text-zinc-500 font-bold text-[10px] uppercase text-center mt-2">Abbrechen</button>
                         </form>
@@ -431,7 +433,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                             <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-2xl border border-orange-100 dark:border-orange-900/30">
                                 <p className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase mb-3 tracking-widest underline underline-offset-4">Abrechnung (Gerundet 0.05)</p>
                                 {fuelSummary && fuelSummary.map((s, i) => {
-                                    const matchedProfile = Object.values(userProfiles).find(p => p.displayName === s.name);
+                                    const matchedProfile = (s.userId ? userProfiles[s.userId] : undefined) || Object.values(userProfiles).find(p => p.displayName === s.name);
                                     const displayColor = matchedProfile?.color || s.color || "#ccc";
                                     return (
                                         <div key={i} className="flex justify-between mb-2 border-b border-orange-200 dark:border-orange-900/40 pb-2 last:border-0 last:mb-0 text-sm">
@@ -483,7 +485,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                         <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest border-b border-gray-100 dark:border-zinc-800 pb-2 text-left text-black dark:text-white italic">Aufteilung</p>
                                         <div className="flex flex-col gap-3">
                                             {editingLog.fuelDetails.map((s, i) => {
-                                                const matchedProfile = Object.values(userProfiles).find(p => p.displayName === s.name);
+                                                const matchedProfile = (s.userId ? userProfiles[s.userId] : undefined) || Object.values(userProfiles).find(p => p.displayName === s.name);
                                                 const displayColor = matchedProfile?.color || s.color || "#ccc";
                                                 return (
                                                     <div key={i} className="flex justify-between items-center">

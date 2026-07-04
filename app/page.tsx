@@ -3,9 +3,11 @@
 
 import { signInWithPopup, User } from "firebase/auth";
 import { auth, googleProvider, db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, setDoc, getDoc, deleteDoc, updateDoc, arrayRemove } from "firebase/firestore"; 
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, arrayRemove, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useUserProfiles } from "../lib/useUserProfiles";
+import { useTheme } from "../lib/useTheme";
 
 interface Car {
   id: string;
@@ -14,6 +16,11 @@ interface Car {
   members: string[];
   initialKm?: number;
 }
+
+const INVITE_VALIDITY_DAYS = 7;
+
+const inviteExpiry = () =>
+  Timestamp.fromMillis(Date.now() + INVITE_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
 
 const PRESET_COLORS = [
   "#ef4444", // Red
@@ -37,54 +44,14 @@ export default function Home() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
-  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
   const [isEditCarModalOpen, setIsEditCarModalOpen] = useState(false);
   const [editCarData, setEditCarData] = useState<{id: string, name: string, initialKm: string} | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
-    setTheme(initialTheme);
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    // Dynamic theme-color meta synchronization for PWAs/iOS Safari
-    let meta = document.getElementById("meta-theme-color");
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.id = "meta-theme-color";
-      meta.setAttribute("name", "theme-color");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", initialTheme === "dark" ? "#09090b" : "#f9fafb");
-  }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    // Dynamic theme-color meta synchronization
-    let meta = document.getElementById("meta-theme-color");
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.id = "meta-theme-color";
-      meta.setAttribute("name", "theme-color");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", nextTheme === "dark" ? "#09090b" : "#f9fafb");
-  };
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
+      if (!currentUser) setCars([]);
       if (currentUser) {
         // Auto-Initialize user profile document inside Firestore
         const userRef = doc(db, "users", currentUser.uid);
@@ -110,17 +77,10 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    return onSnapshot(collection(db, "users"), (snapshot) => {
-      const profiles: any = {};
-      snapshot.docs.forEach(doc => { profiles[doc.id] = doc.data(); });
-      setUserProfiles(profiles);
-    });
-  }, [user]);
+  const userProfiles = useUserProfiles([user?.uid, ...cars.flatMap((c) => c.members)]);
 
   useEffect(() => {
-    if (!user) { setCars([]); return; }
+    if (!user) return;
     const q = query(collection(db, "cars"), where("members", "array-contains", user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setCars(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Car)));
@@ -130,22 +90,33 @@ export default function Home() {
 
   const saveProfile = async () => {
     if (!user) return;
+    const trimmedName = displayName.trim();
+    if (!trimmedName) {
+      alert("Bitte einen Anzeigenamen eingeben!");
+      return;
+    }
     setIsSavingProfile(true);
-    await setDoc(doc(db, "users", user.uid), { 
-      displayName, 
-      color: userColor, 
-      uid: user.uid
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, "users", user.uid), {
+        displayName: trimmedName,
+        color: userColor,
+        uid: user.uid
+      }, { merge: true });
+      setDisplayName(trimmedName);
+      setIsProfileModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Profil konnte nicht gespeichert werden.");
+    }
     setIsSavingProfile(false);
-    setIsProfileModalOpen(false);
   };
 
   const handleCreateCar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!carName.trim() || !user) return;
     await addDoc(collection(db, "cars"), {
-      name: carName,
-      initialKm: Number(newCarInitialKm) || 0,
+      name: carName.trim(),
+      initialKm: Math.max(0, Number(newCarInitialKm) || 0),
       ownerId: user.uid,
       members: [user.uid],
       createdAt: serverTimestamp(),
@@ -166,8 +137,8 @@ export default function Home() {
   const saveCarSettings = async () => {
     if (!editCarData || !editCarData.name.trim()) return;
     await updateDoc(doc(db, "cars", editCarData.id), {
-      name: editCarData.name,
-      initialKm: Number(editCarData.initialKm) || 0
+      name: editCarData.name.trim(),
+      initialKm: Math.max(0, Number(editCarData.initialKm) || 0)
     });
     setIsEditCarModalOpen(false);
   };
@@ -175,24 +146,55 @@ export default function Home() {
   const handleDeleteCar = async () => {
     if (!editCarData) return;
     if (window.confirm(`Auto "${editCarData.name}" wirklich unwiderruflich löschen?`)) {
-      await deleteDoc(doc(db, "cars", editCarData.id));
-      setIsEditCarModalOpen(false);
+      try {
+        // Firestore löscht Subcollections nicht mit - erst Fahrten und
+        // Reservierungen entfernen, sonst bleiben verwaiste Daten zurück.
+        for (const sub of ["logs", "reservations"]) {
+          const snap = await getDocs(collection(db, "cars", editCarData.id, sub));
+          const docs = snap.docs;
+          for (let i = 0; i < docs.length; i += 100) {
+            await Promise.all(docs.slice(i, i + 100).map((d) => deleteDoc(d.ref)));
+          }
+        }
+        await deleteDoc(doc(db, "cars", editCarData.id));
+        setIsEditCarModalOpen(false);
+      } catch (error) {
+        console.error(error);
+        alert("Auto konnte nicht vollständig gelöscht werden. Bitte erneut versuchen.");
+      }
     }
   };
 
-  const handleCopyInvite = async (e: React.MouseEvent, carId: string) => {
+  const handleCopyInvite = async (e: React.MouseEvent, car: Car) => {
     e.preventDefault(); e.stopPropagation();
-    const inviteLink = `${window.location.origin}/invite/${carId}`;
-    
+    if (!user) return;
+
+    // Zufälliger, 7 Tage gültiger Einladungs-Token statt der erratbaren Car-ID
+    const inviteRef = doc(collection(db, "invites"));
+    try {
+      await setDoc(inviteRef, {
+        carId: car.id,
+        carName: car.name,
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+        expiresAt: inviteExpiry(),
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Einladung konnte nicht erstellt werden.");
+      return;
+    }
+    const inviteLink = `${window.location.origin}/invite/${inviteRef.id}`;
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(inviteLink);
-        alert("Einladungslink kopiert!");
+        alert("Einladungslink kopiert! Der Link ist 7 Tage gültig.");
         return;
       } catch (err) { console.error(err); }
     }
     // Fallback für In-App Browser
-    window.prompt("Link kopieren:", inviteLink);
+    window.prompt("Link kopieren (7 Tage gültig):", inviteLink);
   };
 
   const removeMember = async (carId: string, memberId: string) => {
@@ -201,6 +203,9 @@ export default function Home() {
       if (memberId === user?.uid) setIsMemberModalOpen(false);
     }
   };
+
+  // selectedCar ist eine Momentaufnahme - im Modal immer den Live-Stand aus "cars" anzeigen
+  const memberModalCar = selectedCar ? (cars.find((c) => c.id === selectedCar.id) ?? selectedCar) : null;
 
   return (
     <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 overflow-y-auto relative text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
@@ -243,7 +248,7 @@ export default function Home() {
                         </button>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={(e) => handleCopyInvite(e, car.id)} className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl active:scale-90 transition">
+                        <button onClick={(e) => handleCopyInvite(e, car)} className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl active:scale-90 transition">
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
                         </button>
                         {car.ownerId === user.uid && (
@@ -316,7 +321,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <button onClick={saveProfile} className="bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition uppercase italic">Speichern</button>
+                <button onClick={saveProfile} disabled={isSavingProfile} className="bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition uppercase italic disabled:opacity-50">{isSavingProfile ? "Speichert..." : "Speichern"}</button>
                 <button onClick={() => setIsProfileModalOpen(false)} className="text-gray-400 dark:text-zinc-500 font-bold text-sm uppercase text-center mt-2">Schließen</button>
               </div>
             </div>
@@ -349,26 +354,26 @@ export default function Home() {
       )}
 
       {/* PERSONEN MODAL */}
-      {isMemberModalOpen && selectedCar && (
+      {isMemberModalOpen && memberModalCar && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-2xl w-full max-w-sm text-gray-900 dark:text-white border border-gray-100 dark:border-zinc-800">
             <h2 className="text-xl font-black mb-4 text-center italic uppercase text-black dark:text-white">Personen</h2>
             <div className="flex flex-col gap-3 mb-6">
-              {selectedCar.members.map((mId) => (
+              {memberModalCar.members.map((mId) => (
                 <div key={mId} className="flex justify-between items-center bg-gray-50 dark:bg-zinc-800/40 p-3 rounded-2xl border border-gray-100 dark:border-zinc-800/80">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: userProfiles[mId]?.color || '#ccc' }}></div>
                     <span className="font-bold text-sm text-black dark:text-zinc-100">
                       {userProfiles[mId]?.displayName || (mId === user?.uid ? user?.displayName : '') || 'Neues Mitglied'}
                     </span>
-                    {mId === selectedCar.ownerId && (
+                    {mId === memberModalCar.ownerId && (
                       <span className="text-[9px] bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-md font-black uppercase border border-amber-200 dark:border-amber-900/40 flex items-center gap-0.5 shrink-0 select-none">
                         Owner
                       </span>
                     )}
                   </div>
-                  {selectedCar.ownerId === user?.uid && mId !== user?.uid && <button onClick={() => removeMember(selectedCar.id, mId)} className="text-[10px] bg-red-100 dark:bg-red-950/30 text-red-500 dark:text-red-400 px-3 py-1 rounded-lg font-black uppercase active:scale-95 transition">Entfernen</button>}
-                  {mId === user?.uid && mId !== selectedCar.ownerId && <button onClick={() => removeMember(selectedCar.id, mId)} className="text-[10px] bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 px-3 py-1 rounded-lg font-black uppercase active:scale-95 transition">Verlassen</button>}
+                  {memberModalCar.ownerId === user?.uid && mId !== user?.uid && <button onClick={() => removeMember(memberModalCar.id, mId)} className="text-[10px] bg-red-100 dark:bg-red-950/30 text-red-500 dark:text-red-400 px-3 py-1 rounded-lg font-black uppercase active:scale-95 transition">Entfernen</button>}
+                  {mId === user?.uid && mId !== memberModalCar.ownerId && <button onClick={() => removeMember(memberModalCar.id, mId)} className="text-[10px] bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 px-3 py-1 rounded-lg font-black uppercase active:scale-95 transition">Verlassen</button>}
                 </div>
               ))}
             </div>

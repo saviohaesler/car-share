@@ -52,6 +52,10 @@ firebase-debug.log*
 
 # editor settings
 .vscode/
+.idea/
+*.swp
+*.swo
+.claude/
 
 # general logs
 *.log
