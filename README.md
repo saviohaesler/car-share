@@ -2,6 +2,8 @@
 
 A shared-car logbook app: manage multiple vehicles, log trips, plan reservations on a calendar, and track fuel/mileage stats per car — including invite links for new members.
 
+**Live Demo:** [https://carshare.lazolab.com](https://carshare.lazolab.com)
+
 ## Features
 
 - **Google sign-in** (Firebase Auth)
