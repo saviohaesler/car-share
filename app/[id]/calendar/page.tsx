@@ -51,7 +51,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   const [endTime, setEndTime] = useState("");
   const [isAllDay, setIsAllDay] = useState(false);
 
-  // Startdatum für die 3-Tage-Ansicht ("Gestern")
+  // Start date for the 3-day view ("Yesterday")
   const initialDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -89,8 +89,8 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     if (!user) return;
     const q = query(collection(db, "cars", resolvedParams.id, "reservations"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      // Einzelne kaputte Dokumente (fehlendes start/end) überspringen,
-      // statt den ganzen Listener crashen zu lassen
+      // Skip individual broken documents (missing start/end)
+      // instead of crashing the entire listener
       const loadedEvents = snapshot.docs.flatMap(doc => {
         const data = doc.data();
         if (typeof data.start?.toDate !== "function" || typeof data.end?.toDate !== "function") {
@@ -221,7 +221,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
 
     if (isAllDay) {
         if (endDate < startDate) { alert("Das Enddatum darf nicht vor dem Beginn liegen!"); return; }
-        // Lokale Mitternacht verwenden ("yyyy-MM-dd" allein würde als UTC geparst)
+        // Use local midnight ("yyyy-MM-dd" alone would be parsed as UTC)
         start = new Date(`${startDate}T00:00`);
         end = new Date(`${endDate}T00:00`);
         end.setDate(end.getDate() + 1);
@@ -267,7 +267,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         .fc { font-family: inherit; }
         .fc-theme-standard th { border: none !important; padding: 8px 0; }
         
-        /* FIX: Entfernt den Rahmen um das Kalender-Gitter, passend zum Log-Style */
+        /* FIX: Removes the border around the calendar grid to match log style */
         .fc-scrollgrid { border-radius: 12px; overflow: hidden; border: none !important; }
         
         .fc-timegrid-now-indicator-line { border-color: #ef4444; border-width: 2px; }
@@ -286,7 +286,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
            overflow: visible !important;
         }
         
-        /* Event Styling MonthView & AllDay (Wieder farbige Blöcke, damit mehrtägige Termine durchgehend sind) */
+        /* Event Styling MonthView & AllDay (Colored blocks again, so multi-day events are continuous) */
         .fc-daygrid-event {
           border-radius: 4px !important;
           border: none !important;
@@ -359,10 +359,10 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         }
       `}</style>
 
-      {/* FIX: Die weißen Karten-Styles (bg-white, shadow-lg, border) wurden entfernt, w-full bleibt für volle Breite */}
+      {/* FIX: White card styles (bg-white, shadow-lg, border) were removed, w-full remains for full width */}
       <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-4xl h-full flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))]">
         
-        {/* HEADER MIT ZURÜCK UND TITEL RECHTS */}
+        {/* HEADER WITH BACK AND TITLE ON THE RIGHT */}
         <div className="flex justify-between items-center mb-6">
           <Link href={`/`} className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 p-3 px-5 rounded-2xl shadow-sm text-gray-700 dark:text-zinc-300 font-bold text-sm active:scale-90 transition uppercase">
             Zurück
@@ -414,7 +414,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
         
-        {/* KALENDER */}
+        {/* CALENDAR */}
         <div className="h-[65vh] bg-white dark:bg-zinc-900 p-2 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800/80">
           <FullCalendar
             ref={calendarRef}
@@ -482,7 +482,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      {/* MODAL BEARBEITEN/DETAILS */}
+      {/* EDIT/DETAILS MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] shadow-2xl w-full max-w-sm border border-gray-100 dark:border-zinc-800/80 text-black dark:text-white">
@@ -491,7 +491,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
             </h2>
             <form onSubmit={handleModalSubmit} className="flex flex-col gap-4">
               
-              {/* Modernes Floating Label für den Grund/Titel */}
+              {/* Modern Floating Label for Reason/Title */}
               {isOwner ? (
                 <div className="relative w-full">
                   <input

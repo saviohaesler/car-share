@@ -10,9 +10,9 @@ export interface UserProfile {
   color: string;
 }
 
-// Lädt die Profile der übergebenen UIDs als einzelne Dokument-Subscriptions,
-// statt die komplette users-Collection zu streamen. Dadurch können die
-// Firestore-Regeln das Auflisten aller Nutzer verbieten (kein Enumerieren).
+// Loads the profiles of the given UIDs as individual document subscriptions
+// instead of streaming the entire users collection. This allows Firestore rules
+// to forbid listing all users (prevents enumeration).
 export function useUserProfiles(uids: (string | undefined | null)[]) {
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
   const key = Array.from(new Set(uids.filter((u): u is string => !!u)))
@@ -29,7 +29,7 @@ export function useUserProfiles(uids: (string | undefined | null)[]) {
             setProfiles((prev) => ({ ...prev, [uid]: snap.data() as UserProfile }));
           }
         },
-        () => {} // Fehlende Leserechte einzelner Profile dürfen die Seite nicht stören
+        () => {} // Missing read permissions for individual profiles should not break the page
       )
     );
     return () => unsubs.forEach((u) => u());

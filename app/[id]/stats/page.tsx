@@ -174,7 +174,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   const getRangeLabel = () => {
     const today = new Date();
-    // Auf den Monatsersten normieren, sonst springt setMonth am 29.-31. in den falschen Monat
+    // Normalize to the first of the month, otherwise setMonth jumps to the wrong month on the 29th-31st
     let start = new Date(today.getFullYear(), today.getMonth(), 1);
     if (timeRange === "3m") start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
     else if (timeRange === "6m") start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
@@ -220,8 +220,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
       if (log.fuelDetails) {
         log.fuelDetails.forEach(detail => {
-          // Bevorzugt über die gespeicherte UID zuordnen; Namens-Matching nur
-          // als Fallback für Alt-Daten ohne userId-Feld
+          // Prefer matching by saved UID; name matching only
+          // as a fallback for legacy data without a userId field
           const matchedUid = detail.userId || Object.keys(userProfiles).find(
             uid => userProfiles[uid].displayName === detail.name
           );

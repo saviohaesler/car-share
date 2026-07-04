@@ -24,9 +24,9 @@ function applyTheme(theme: Theme) {
   meta.setAttribute("content", theme === "dark" ? "#09090b" : "#f9fafb");
 }
 
-// Gemeinsame Theme-Logik für alle Seiten (ersetzt die zuvor duplizierten
-// useEffect-Blöcke). Der Initialwert kommt aus localStorage bzw. der
-// System-Einstellung; das Inline-Script im Root-Layout verhindert FOUC.
+// Shared theme logic for all pages (replaces the previously duplicated
+// useEffect blocks). The initial value comes from localStorage or the
+// system preference; the inline script in RootLayout prevents FOUC.
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(resolveInitialTheme);
 

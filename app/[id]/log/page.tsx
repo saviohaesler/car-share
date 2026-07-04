@@ -241,8 +241,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     }
     setIsSaving(true);
 
-    // Frisch aus Firestore lesen, damit parallel erfasste Fahrten oder
-    // Tankstopps anderer Mitglieder nicht auf veraltetem State abgerechnet werden
+    // Read fresh from Firestore so that trips or fuel stops
+    // added concurrently by other members are not billed against outdated state
     let currentLogs = logs;
     try {
       const freshSnap = await getDocs(query(collection(db, "cars", resolvedParams.id, "logs"), orderBy("timestamp", "desc")));

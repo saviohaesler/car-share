@@ -147,8 +147,8 @@ export default function Home() {
     if (!editCarData) return;
     if (window.confirm(`Auto "${editCarData.name}" wirklich unwiderruflich löschen?`)) {
       try {
-        // Firestore löscht Subcollections nicht mit - erst Fahrten und
-        // Reservierungen entfernen, sonst bleiben verwaiste Daten zurück.
+        // Firestore doesn't automatically delete subcollections - remove logs and
+        // reservations first, otherwise orphaned data remains.
         for (const sub of ["logs", "reservations"]) {
           const snap = await getDocs(collection(db, "cars", editCarData.id, sub));
           const docs = snap.docs;
@@ -169,7 +169,7 @@ export default function Home() {
     e.preventDefault(); e.stopPropagation();
     if (!user) return;
 
-    // Zufälliger, 7 Tage gültiger Einladungs-Token statt der erratbaren Car-ID
+    // Random, 7-day valid invitation token instead of the guessable Car-ID
     const inviteRef = doc(collection(db, "invites"));
     try {
       await setDoc(inviteRef, {
@@ -193,7 +193,7 @@ export default function Home() {
         return;
       } catch (err) { console.error(err); }
     }
-    // Fallback für In-App Browser
+    // Fallback for In-App Browser
     window.prompt("Link kopieren (7 Tage gültig):", inviteLink);
   };
 
@@ -204,7 +204,7 @@ export default function Home() {
     }
   };
 
-  // selectedCar ist eine Momentaufnahme - im Modal immer den Live-Stand aus "cars" anzeigen
+  // selectedCar is a snapshot - always show the live state from "cars" in the modal
   const memberModalCar = selectedCar ? (cars.find((c) => c.id === selectedCar.id) ?? selectedCar) : null;
 
   return (

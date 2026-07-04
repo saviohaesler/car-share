@@ -1,18 +1,18 @@
-# CarShare
+# car-share
 
-Fahrtenbuch-App für gemeinsam genutzte Autos: mehrere Fahrzeuge verwalten, Fahrten protokollieren, Reservierungen im Kalender planen und Tank-/Kilometerstatistiken pro Auto einsehen — inklusive Einladungslinks für neue Mitglieder.
+A shared-car logbook app: manage multiple vehicles, log trips, plan reservations on a calendar, and track fuel/mileage stats per car — including invite links for new members.
 
 ## Features
 
-- **Google-Login** (Firebase Auth)
-- **Mehrere Autos** mit Mitgliederverwaltung und individueller Farbzuordnung pro Person
-- **Fahrtenbuch** mit Kilometerstand-Tracking
-- **Kalender** für Reservierungen
-- **Statistiken** zu Kilometern, Tankfüllungen und Verbrauch je Auto
-- **Einladungslinks** (7 Tage gültig, tokenbasiert)
-- Dark-/Light-Mode
+- **Google sign-in** (Firebase Auth)
+- **Multiple cars** with member management and per-person color coding
+- **Trip log** with odometer tracking
+- **Calendar** for reservations
+- **Statistics** on mileage, fuel-ups, and consumption per car
+- **Invite links** (valid for 7 days, token-based)
+- Dark/light mode
 
-## Tech-Stack
+## Tech stack
 
 - [Next.js](https://nextjs.org) (App Router) + TypeScript
 - [Firebase](https://firebase.google.com) — Authentication & Firestore
@@ -20,24 +20,24 @@ Fahrtenbuch-App für gemeinsam genutzte Autos: mehrere Fahrzeuge verwalten, Fahr
 
 ## Setup
 
-### 1. Repository & Dependencies
+### 1. Clone & install dependencies
 
 ```bash
 git clone https://github.com/saviohaesler/CarShare.git
-cd CarShare
+cd car-share
 npm install
 ```
 
-### 2. Firebase-Projekt
+### 2. Firebase project
 
-1. Projekt in der [Firebase Console](https://console.firebase.google.com/) anlegen
-2. **Authentication** → Google als Anbieter aktivieren
-3. **Firestore Database** anlegen
-4. Unter *Projekteinstellungen* eine neue Web-App registrieren und die Config-Werte kopieren
+1. Create a project in the [Firebase Console](https://console.firebase.google.com/)
+2. **Authentication** → enable Google as a sign-in provider
+3. Create a **Firestore Database**
+4. Under *Project settings*, register a new web app and copy the config values
 
-### 3. Umgebungsvariablen
+### 3. Environment variables
 
-`.env.local` im Projektroot anlegen:
+Create `.env.local` in the project root:
 
 ```bash
 NEXT_PUBLIC_FIREBASE_API_KEY=
@@ -48,33 +48,33 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 ```
 
-Die Werte stammen aus der Web-App-Config in den Firebase-Projekteinstellungen.
+The values come from the web app config in your Firebase project settings.
 
-### 4. Firestore Security Rules deployen
+### 4. Deploy Firestore security rules
 
-Die serverseitigen Zugriffsregeln liegen in [`firestore.rules`](firestore.rules) und **müssen deployed werden**, damit Mitgliedschafts- und Owner-Checks nicht nur im Client, sondern auch auf dem Server gelten:
+The server-side access rules live in [`firestore.rules`](firestore.rules) and **must be deployed** so that membership/owner checks are enforced server-side, not just on the client:
 
 ```bash
-npm install -g firebase-tools   # falls noch nicht installiert
+npm install -g firebase-tools   # if not already installed
 firebase login
-firebase use <projekt-id>
+firebase use <project-id>
 firebase deploy --only firestore:rules
 ```
 
-Ohne deployte Regeln kann jeder angemeldete Nutzer beliebige Daten lesen und schreiben.
+Without deployed rules, any signed-in user can read and write arbitrary data.
 
-### 5. Entwicklungsserver starten
+### 5. Start the dev server
 
 ```bash
 npm run dev
 ```
 
-App unter [http://localhost:3000](http://localhost:3000) öffnen.
+Open the app at [http://localhost:3000](http://localhost:3000).
 
-## Einladungen
+## Invites
 
-Einladungslinks enthalten einen zufälligen Token aus der `invites`-Collection und sind 7 Tage gültig. Alte Links im Format `/invite/{carId}` funktionieren für den Beitritt nicht mehr (bestehende Mitglieder werden weiterhin korrekt weitergeleitet). Optional kann in der Firebase Console eine [TTL-Policy](https://firebase.google.com/docs/firestore/ttl) auf `invites.expiresAt` gesetzt werden, damit abgelaufene Einladungen automatisch gelöscht werden.
+Invite links contain a random token from the `invites` collection and are valid for 7 days. Old links in the `/invite/{carId}` format no longer work for joining (existing members are still redirected correctly). Optionally, a [TTL policy](https://firebase.google.com/docs/firestore/ttl) can be set on `invites.expiresAt` in the Firebase Console to automatically delete expired invites.
 
 ## Deployment
 
-Am einfachsten über [Vercel](https://vercel.com/new) — die Umgebungsvariablen aus Schritt 3 müssen dort ebenfalls hinterlegt werden.
+Easiest via [Vercel](https://vercel.com/new) — the environment variables from step 3 need to be configured there as well.

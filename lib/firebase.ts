@@ -17,7 +17,7 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 
-// NEU: Stabilität für den Browser erhöhen
+// NEW: Increase stability for the browser
 if (typeof window !== "undefined") {
   setPersistence(auth, browserLocalPersistence);
 }
