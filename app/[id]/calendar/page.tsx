@@ -262,7 +262,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   if (!user) return null;
 
   return (
-    <main className="w-full h-[100dvh] flex flex-col items-center p-4 bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
+    <main className="w-full h-[100dvh] flex flex-col items-center px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
       <style>{`
         .fc { font-family: inherit; }
         .fc-theme-standard th { border: none !important; padding: 8px 0; }
