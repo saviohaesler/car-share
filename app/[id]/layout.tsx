@@ -3,6 +3,7 @@
 import React, { use } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useViewportReset } from "../../lib/useViewportReset";
 
 export default function CarLayout({
   children,
@@ -13,6 +14,7 @@ export default function CarLayout({
 }) {
   const resolvedParams = use(params);
   const pathname = usePathname();
+  useViewportReset();
 
   const isLogActive = pathname?.endsWith("/log");
   const isCalendarActive = pathname?.endsWith("/calendar");

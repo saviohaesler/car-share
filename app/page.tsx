@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUserProfiles } from "../lib/useUserProfiles";
 import { useTheme } from "../lib/useTheme";
+import { useViewportReset } from "../lib/useViewportReset";
 
 interface Car {
   id: string;
@@ -47,6 +48,7 @@ export default function Home() {
   const [isEditCarModalOpen, setIsEditCarModalOpen] = useState(false);
   const [editCarData, setEditCarData] = useState<{id: string, name: string, initialKm: string} | null>(null);
   const { theme, toggleTheme } = useTheme();
+  useViewportReset();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
