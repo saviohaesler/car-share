@@ -17,6 +17,10 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Verhindert das Auto-Zoomen von iOS beim Fokussieren von Eingabefeldern
+  // (<16px Schrift), das die fixierte Tab-Bar aus dem Bild schiebt.
+  // Manuelles Pinch-Zoomen bleibt auf iOS trotzdem möglich.
+  maximumScale: 1,
   viewportFit: "cover",
 };
 
