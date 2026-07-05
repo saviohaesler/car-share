@@ -262,7 +262,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
   if (!user) return null;
 
   return (
-    <main className="w-full h-full flex flex-col items-center px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
+    <main className="w-full h-full flex flex-col items-center px-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
       <style>{`
         .fc { font-family: inherit; }
         .fc-theme-standard th { border: none !important; padding: 8px 0; }
@@ -360,7 +360,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
       `}</style>
 
       {/* FIX: White card styles (bg-white, shadow-lg, border) were removed, w-full remains for full width */}
-      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-4xl h-full flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))]">
+      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-4xl h-full flex flex-col pb-4">
         
         {/* HEADER WITH BACK AND TITLE ON THE RIGHT */}
         <div className="flex justify-between items-center mb-6">

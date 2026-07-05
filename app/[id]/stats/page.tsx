@@ -296,7 +296,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <main className="w-full h-full flex flex-col items-center px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-y-auto relative transition-colors duration-200">
-      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md flex flex-col pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md flex flex-col pb-4">
         
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">

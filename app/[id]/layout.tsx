@@ -21,17 +21,17 @@ export default function CarLayout({
   const isStatsActive = pathname?.endsWith("/stats");
 
   return (
-    <div className="w-full min-h-[100dvh] flex flex-col bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 relative transition-colors duration-200">
+    <div className="w-full h-[100dvh] overflow-hidden flex flex-col bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 relative transition-colors duration-200">
       
       {/* Page content wrapper */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         {children}
       </div>
 
       {/* Persistent Static Tab Bar */}
       <nav
         style={{ viewTransitionName: "bottom-nav" }}
-        className="fixed bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 text-center"
+        className="relative shrink-0 w-full h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 text-center"
       >
         <Link 
           href={`/${resolvedParams.id}/log`} 
