@@ -36,7 +36,11 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // Kein "black-translucent": iOS 26 bemisst das Web-App-Fenster damit um die
+    // Statusleistenhöhe zu kurz und lässt unten einen toten Balken stehen.
+    // Die Statusleiste wird stattdessen über das dynamische theme-color-Meta
+    // passend zum App-Hintergrund eingefärbt.
+    statusBarStyle: "default",
     title: "CarShare",
   },
 };
