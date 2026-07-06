@@ -402,9 +402,13 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                   <span className="font-black text-gray-800 dark:text-zinc-100 text-lg leading-tight">
                                       {log.type === 'fuel' ? `GETANKT` : `${formatKm(log.startKm)} → ${formatKm(log.km)} km`}
                                   </span>
-                                  {log.type !== 'fuel' && <span className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-tighter">+ {formatKm(diff)} km gefahren</span>}
-                                  {log.type === 'fuel' && <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-tighter">bei {formatKm(log.km)} km</span>}
-                                  <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-1">{log.userName}</span>
+                                  {log.type !== 'fuel' && (
+                                    <span className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-tighter">+ {formatKm(diff)} km gefahren</span>
+                                  )}
+                                  {log.type === 'fuel' && (
+                                    <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-tighter">bei {formatKm(log.km)} km</span>
+                                  )}
+                                  <span className="text-[10px] font-black uppercase mt-1" style={{ color: userProfiles[log.userId]?.color || log.userColor || "#9ca3af" }}>{log.userName}</span>
                               </div>
                               <div className="text-right flex flex-col items-end shrink-0">
                                   <span className="text-[11px] font-black text-gray-400 dark:text-zinc-500 uppercase">{log.timestamp?.toDate().toLocaleDateString('de-DE')}</span>
