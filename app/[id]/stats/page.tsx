@@ -610,7 +610,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                       </span>
                       {log.type !== 'fuel' && <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-tight">+ {formatKm(diff)} km gefahren</span>}
                       {log.type === 'fuel' && <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-tight">bei {formatKm(log.km)} km</span>}
-                      <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-0.5">{log.userName}</span>
+                      <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-0.5">{userProfiles[log.userId]?.displayName || log.userName}</span>
                     </div>
                     <div className="text-right flex flex-col items-end shrink-0">
                       <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase">
@@ -650,7 +650,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                 <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedLog.type === 'fuel' ? '#f97316' : (userProfiles[selectedLog.userId]?.color || selectedLog.userColor || "#ccc") }}></div>
-                  <span className="font-black text-sm text-black dark:text-zinc-200">{selectedLog.userName}</span>
+                  <span className="font-black text-sm text-black dark:text-zinc-200">{userProfiles[selectedLog.userId]?.displayName || selectedLog.userName}</span>
                 </div>
               </div>
 
@@ -673,7 +673,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                                 return <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }}></div>;
                               })()}
                               <div className="flex flex-col">
-                                <span className="font-bold text-gray-800 dark:text-zinc-300 text-xs">{s.name}</span>
+                                <span className="font-bold text-gray-800 dark:text-zinc-300 text-xs">{(s.userId ? userProfiles[s.userId]?.displayName : undefined) || s.name}</span>
                                 <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(s.dist)} km</span>
                               </div>
                             </div>

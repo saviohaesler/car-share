@@ -122,7 +122,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     backgroundColor: userProfiles[e.userId]?.color || '#3b82f6',
     extendedProps: {
       userId: e.userId,
-      userName: e.userName
+      userName: userProfiles[e.userId]?.displayName || e.userName
     }
   }));
 
@@ -548,7 +548,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
               <div className="bg-gray-100 dark:bg-zinc-950 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
                 <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase">Benutzer</span>
                 <span className="font-black text-black dark:text-white text-sm">
-                  {editingEvent ? editingEvent.userName : (userProfiles[user?.uid || ""]?.displayName || user?.displayName)}
+                  {editingEvent ? (userProfiles[editingEvent.userId]?.displayName || editingEvent.userName) : (userProfiles[user?.uid || ""]?.displayName || user?.displayName)}
                 </span>
               </div>
               

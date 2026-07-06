@@ -408,7 +408,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                   {log.type === 'fuel' && (
                                     <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-tighter">bei {formatKm(log.km)} km</span>
                                   )}
-                                  <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-1">{log.userName}</span>
+                                  <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-1">{userProfiles[log.userId]?.displayName || log.userName}</span>
                               </div>
                               <div className="text-right flex flex-col items-end shrink-0">
                                   <span className="text-[11px] font-black text-gray-400 dark:text-zinc-500 uppercase">{log.timestamp?.toDate().toLocaleDateString('de-DE')}</span>
@@ -474,7 +474,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                             <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: editingLog.type === 'fuel' ? '#f97316' : (userProfiles[editingLog.userId]?.color || editingLog.userColor || "#ccc") }}></div>
-                                <span className="font-black text-sm">{editingLog.userName}</span>
+                                <span className="font-black text-sm">{userProfiles[editingLog.userId]?.displayName || editingLog.userName}</span>
                             </div>
                         </div>
 
