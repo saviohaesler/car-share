@@ -31,7 +31,7 @@ export default function CarLayout({
       {/* Persistent Static Tab Bar */}
       <nav
         style={{ viewTransitionName: "bottom-nav" }}
-        className="relative shrink-0 w-full h-[calc(4rem+env(safe-area-inset-bottom))] pb-[calc(env(safe-area-inset-bottom)*0.8)] pt-1 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 text-center"
+        className="relative shrink-0 w-full h-[calc(4rem+env(safe-area-inset-bottom))] pb-[calc(env(safe-area-inset-bottom)*0.4)] pt-2 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 text-center"
       >
         <Link 
           href={`/${resolvedParams.id}/log`} 

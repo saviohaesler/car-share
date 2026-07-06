@@ -212,7 +212,6 @@ export default function Home() {
 
   return (
     <main className="w-full h-full flex flex-col items-center px-4 pb-4 pt-[calc(3rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 overflow-y-auto relative text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
-      <ViewportDebug />
       <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 max-w-md w-full text-center border border-gray-100 dark:border-zinc-800/80">
         
         <div className="flex justify-between items-center mb-8 px-2">
