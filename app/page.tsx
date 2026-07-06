@@ -210,11 +210,10 @@ export default function Home() {
   // selectedCar is a snapshot - always show the live state from "cars" in the modal
   const memberModalCar = selectedCar ? (cars.find((c) => c.id === selectedCar.id) ?? selectedCar) : null;
 
-  return (
-    <main className="w-full h-full flex flex-col items-center px-4 pb-4 pt-[calc(3rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 overflow-y-auto relative text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
-      <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 max-w-md w-full text-center border border-gray-100 dark:border-zinc-800/80">
+    <main className="w-full h-full flex flex-col items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] bg-gray-50 dark:bg-zinc-950 overflow-hidden relative text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
+      <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 max-w-md w-full flex flex-col max-h-full text-center border border-gray-100 dark:border-zinc-800/80">
         
-        <div className="flex justify-between items-center mb-8 px-2">
+        <div className="flex justify-between items-center mb-6 px-2 shrink-0">
           <div className="w-10"></div>
           <h1 className="text-3xl font-black tracking-tight italic uppercase">
             {"CARSHARE".split("").map((char, index) => (
@@ -231,18 +230,18 @@ export default function Home() {
         </div>
         
         {user ? (
-          <div className="flex flex-col gap-8">
-            <div className="text-center">
+          <div className="flex flex-col gap-6 flex-1 overflow-hidden">
+            <div className="text-center shrink-0">
               <p className="text-2xl font-black italic text-gray-800 dark:text-zinc-100">
                 Hallo <span style={{ color: userColor }}>{displayName}</span>
               </p>
             </div>
 
-            <div className="text-left">
-              <h2 className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase mb-4 tracking-widest ml-1">Meine Autos</h2>
-              <div className="flex flex-col gap-3 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="text-left flex flex-col flex-1 overflow-hidden min-h-0">
+              <h2 className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest ml-1 shrink-0">Meine Autos</h2>
+              <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
                 {cars.map((car) => (
-                  <div key={car.id} className="relative">
+                  <div key={car.id} className="relative shrink-0">
                     <Link href={`/${car.id}/log`} className="bg-white dark:bg-zinc-900 border-2 border-gray-100 dark:border-zinc-800/80 p-5 rounded-3xl flex justify-between items-center transition shadow-sm active:scale-[0.98]">
                       <div className="flex flex-col text-left">
                         <span className="font-bold text-gray-800 dark:text-zinc-100 text-lg">{car.name}</span>
@@ -267,13 +266,13 @@ export default function Home() {
               </div>
             </div>
 
-            <form onSubmit={handleCreateCar} className="flex flex-col gap-2 bg-gray-50 dark:bg-zinc-900/50 p-4 rounded-3xl border border-dashed border-gray-300 dark:border-zinc-700">
+            <form onSubmit={handleCreateCar} className="flex flex-col gap-2 bg-gray-50 dark:bg-zinc-900/50 p-4 rounded-3xl border border-dashed border-gray-300 dark:border-zinc-700 shrink-0">
                <input type="text" placeholder="Auto Name..." value={carName} onChange={(e) => setCarName(e.target.value)} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition" required />
                <input type="number" placeholder="Start KM-Stand..." value={newCarInitialKm} onChange={(e) => setNewCarInitialKm(e.target.value)} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition" />
                <button type="submit" className="bg-gray-800 dark:bg-zinc-750 text-white p-4 rounded-2xl font-bold active:scale-95 transition mt-1">Hinzufügen</button>
             </form>
 
-            <button onClick={() => auth.signOut()} className="bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-bold py-4 rounded-2xl active:scale-95 transition uppercase text-xs tracking-widest mt-4">Abmelden</button>
+            <button onClick={() => auth.signOut()} className="bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-bold py-4 rounded-2xl active:scale-95 transition uppercase text-xs tracking-widest shrink-0 mt-2">Abmelden</button>
           </div>
         ) : (
           <div className="py-8 flex flex-col items-center">
