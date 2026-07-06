@@ -210,6 +210,7 @@ export default function Home() {
   // selectedCar is a snapshot - always show the live state from "cars" in the modal
   const memberModalCar = selectedCar ? (cars.find((c) => c.id === selectedCar.id) ?? selectedCar) : null;
 
+  return (
     <main className="w-full h-full flex flex-col items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] bg-gray-50 dark:bg-zinc-950 overflow-hidden relative text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
       <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 max-w-md w-full flex flex-col max-h-full text-center border border-gray-100 dark:border-zinc-800/80">
         
