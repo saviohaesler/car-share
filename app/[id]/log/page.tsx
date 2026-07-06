@@ -444,7 +444,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                             <div className="flex items-center gap-2">
                                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: displayColor }}></div>
                                                 <div className="flex flex-col text-left">
-                                                    <span className="font-bold text-gray-700 dark:text-zinc-300">{s.name}</span>
+                                                    <span className="font-bold text-gray-700 dark:text-zinc-300">{matchedProfile?.displayName || s.name}</span>
                                                     <span className="text-[10px] text-gray-500 dark:text-zinc-500 font-bold">{formatKm(s.dist)} km</span>
                                                 </div>
                                             </div>
