@@ -27,6 +27,13 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "CarShare App",
   description: "Fahrtenbuch für geteilte Autos",
+  // Damit "Zum Home-Bildschirm" auf dem iPhone das App-Icon (statt eines
+  // Screenshots) verwendet. Das Manifest wird von app/manifest.ts automatisch
+  // verlinkt.
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

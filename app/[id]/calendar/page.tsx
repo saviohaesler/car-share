@@ -162,17 +162,24 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     setNewTitle("");
     setStartDate(format(start, "yyyy-MM-dd"));
     setStartTime(format(start, "HH:mm"));
-    setIsAllDay(selectInfo.allDay);
-    
+
     if (selectInfo.allDay) {
-      const adjustedEnd = new Date(end.getTime() - 1000);
+      // Langes Drücken auf einen Tag (Monats-/Ganztags-Slot): das Detailfenster
+      // mit sinnvollen Standard-Uhrzeiten öffnen, statt direkt eine ganztägige
+      // Fahrt anzulegen. Zeiten & Titel bleiben so anpassbar; "Ganztägig" kann
+      // bei Bedarf im Modal aktiviert werden.
+      const adjustedEnd = new Date(end.getTime() - 1000); // letzter markierter Tag
+      setIsAllDay(false);
+      setStartTime("08:00");
       setEndDate(format(adjustedEnd, "yyyy-MM-dd"));
-      setEndTime(format(adjustedEnd, "HH:mm"));
+      setEndTime("09:00");
     } else if (start.getTime() === end.getTime() || (end.getTime() - start.getTime() < 60000)) {
+      setIsAllDay(false);
       const defaultEnd = new Date(start.getTime() + 60 * 60 * 1000);
       setEndDate(format(defaultEnd, "yyyy-MM-dd"));
       setEndTime(format(defaultEnd, "HH:mm"));
     } else {
+      setIsAllDay(false);
       setEndDate(format(end, "yyyy-MM-dd"));
       setEndTime(format(end, "HH:mm"));
     }

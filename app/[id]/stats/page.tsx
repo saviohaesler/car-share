@@ -188,6 +188,33 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
     return `${formatMonthYear(start)} - ${formatMonthYear(today)}`;
   };
 
+  // Build a name -> Google-account (uid) map so that legacy entries without a
+  // stored userId are still attributed to the correct account. Everything is
+  // aggregated per Google account (uid), never per raw display name, so the
+  // same person can no longer show up twice (e.g. "Savio" and "savio").
+  const nameToUid: Record<string, string> = {};
+  Object.entries(userProfiles).forEach(([uid, p]) => {
+    if (p?.displayName) nameToUid[p.displayName.trim().toLowerCase()] = uid;
+  });
+  logs.forEach(l => {
+    if (l.userId && l.userName) {
+      const k = l.userName.trim().toLowerCase();
+      if (!(k in nameToUid)) nameToUid[k] = l.userId;
+    }
+    l.fuelDetails?.forEach(d => {
+      if (d.userId && d.name) {
+        const k = d.name.trim().toLowerCase();
+        if (!(k in nameToUid)) nameToUid[k] = d.userId;
+      }
+    });
+  });
+
+  const resolveUid = (userId?: string, name?: string): string | undefined =>
+    userId || (name ? nameToUid[name.trim().toLowerCase()] : undefined);
+
+  const displayNameFor = (uid: string | undefined, fallback: string) =>
+    (uid && userProfiles[uid]?.displayName) || fallback;
+
   // Aggregated Stats Calculations
   let totalDistance = 0;
   let totalFuelCosts = 0;
@@ -204,33 +231,33 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
       const dist = log.km - sKm;
       totalDistance += dist;
 
-      if (!distancePerUser[log.userId]) {
-        distancePerUser[log.userId] = {
-          name: log.userName,
+      const uid = resolveUid(log.userId, log.userName) || log.userId;
+      if (!distancePerUser[uid]) {
+        distancePerUser[uid] = {
+          name: displayNameFor(uid, log.userName),
           dist: 0,
-          color: userProfiles[log.userId]?.color || log.userColor || "#3b82f6",
+          color: userProfiles[uid]?.color || log.userColor || "#3b82f6",
           count: 0
         };
       }
-      distancePerUser[log.userId].dist += dist;
-      distancePerUser[log.userId].count += 1;
+      distancePerUser[uid].dist += dist;
+      distancePerUser[uid].count += 1;
     } else if (log.type === "fuel") {
       fuelingsCount++;
       totalFuelCosts += log.fuelAmount || 0;
 
       if (log.fuelDetails) {
         log.fuelDetails.forEach(detail => {
-          // Prefer matching by saved UID; name matching only
-          // as a fallback for legacy data without a userId field
-          const matchedUid = detail.userId || Object.keys(userProfiles).find(
-            uid => userProfiles[uid].displayName === detail.name
-          );
+          // Attribute to the Google account (uid). Legacy details without a
+          // userId are matched by (case-insensitive) name; unresolvable rows
+          // like "Lücke (nicht erfasst)" simply keep their name as the key.
+          const matchedUid = resolveUid(detail.userId, detail.name);
           const key = matchedUid || detail.name;
           const resolvedColor = (matchedUid && userProfiles[matchedUid]?.color) || detail.color || "#9ca3af";
 
           if (!fuelDebtPerUser[key]) {
             fuelDebtPerUser[key] = {
-              name: detail.name,
+              name: displayNameFor(matchedUid, detail.name),
               debt: 0,
               color: resolvedColor,
               dist: 0
@@ -268,14 +295,15 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
       const dist = log.km - sKm;
       currentTankTotalDistance += dist;
 
-      if (!currentTankDistancePerUser[log.userId]) {
-        currentTankDistancePerUser[log.userId] = {
-          name: log.userName,
+      const uid = resolveUid(log.userId, log.userName) || log.userId;
+      if (!currentTankDistancePerUser[uid]) {
+        currentTankDistancePerUser[uid] = {
+          name: displayNameFor(uid, log.userName),
           dist: 0,
-          color: userProfiles[log.userId]?.color || log.userColor || "#3b82f6"
+          color: userProfiles[uid]?.color || log.userColor || "#3b82f6"
         };
       }
-      currentTankDistancePerUser[log.userId].dist += dist;
+      currentTankDistancePerUser[uid].dist += dist;
     }
   }
 
