@@ -191,6 +191,27 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     }, 50);
   };
 
+  const handleDateClick = (arg: any) => {
+    if (!user) return;
+    setEditingEvent(null);
+    setNewTitle("");
+    
+    // When a single day is tapped/long-pressed without dragging, 
+    // we manually open the modal with default times.
+    const start = arg.date;
+    setIsAllDay(false);
+    setStartDate(format(start, "yyyy-MM-dd"));
+    setStartTime("08:00");
+    setEndDate(format(start, "yyyy-MM-dd"));
+    setEndTime("09:00");
+    
+    setIsModalOpen(true);
+    
+    setTimeout(() => {
+      calendarRef.current?.getApi().unselect();
+    }, 50);
+  };
+
   const handleSelectEvent = (clickInfo: EventClickArg) => {
     const ev = clickInfo.event;
     if (!ev.start) return;
@@ -436,6 +457,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
             selectable={true}
             selectMirror={true}
             select={handleSelectSlot}
+            dateClick={handleDateClick}
             eventClick={handleSelectEvent}
             allDaySlot={true}
             allDayText="Ganz."
