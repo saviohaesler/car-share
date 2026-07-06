@@ -33,14 +33,16 @@ body {
 }
 
 html, body {
-  overflow: hidden; /* Verhindert das Scrollen der gesamten Seite */
-  height: 100%;
+  /* Als installierte Web-App den GESAMTEN iPhone-Bildschirm ausfüllen
+     (edge-to-edge). "inset: 0" spannt die fixe Fläche über die komplette
+     Viewport-Höhe – inklusive der unteren Safe-Area –, sodass unten kein
+     schwarzer Balken durchscheint. "height: 100%" allein deckt auf iOS
+     im Standalone-Modus die untere Safe-Area nicht ab. */
   position: fixed;
-  width: 100%;
-  top: 0;
-  left: 0;
-  /* Verhindert Pull-to-Refresh in Chrome/Safari */
-  overscroll-behavior: none; 
+  inset: 0;
+  overflow: hidden; /* Verhindert das Scrollen der gesamten Seite */
+  /* Verhindert Pull-to-Refresh / Rubber-Banding in Chrome/Safari */
+  overscroll-behavior: none;
 }
 
 /* Custom GPU-accelerated View Transitions styling */
