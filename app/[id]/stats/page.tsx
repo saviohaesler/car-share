@@ -649,7 +649,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
               <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
                 <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedLog.type === 'fuel' ? '#f97316' : (userProfiles[selectedLog.userId]?.color || selectedLog.userColor || "#ccc") }}></div>
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: userProfiles[selectedLog.userId]?.color || selectedLog.userColor || "#ccc" }}></div>
                   <span className="font-black text-sm text-black dark:text-zinc-200">{userProfiles[selectedLog.userId]?.displayName || selectedLog.userName}</span>
                 </div>
               </div>

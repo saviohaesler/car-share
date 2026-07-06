@@ -473,7 +473,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                         <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
                             <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
                             <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: editingLog.type === 'fuel' ? '#f97316' : (userProfiles[editingLog.userId]?.color || editingLog.userColor || "#ccc") }}></div>
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: userProfiles[editingLog.userId]?.color || editingLog.userColor || "#ccc" }}></div>
                                 <span className="font-black text-sm">{userProfiles[editingLog.userId]?.displayName || editingLog.userName}</span>
                             </div>
                         </div>
