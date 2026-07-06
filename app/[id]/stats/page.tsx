@@ -668,7 +668,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                           <div key={i} className="flex justify-between items-center bg-gray-50/50 dark:bg-zinc-950/30 p-2.5 rounded-xl border border-gray-100/50 dark:border-zinc-800/30">
                             <div className="flex items-center gap-2 text-left">
                               {(() => {
-                                const matchedProfile = (s.userId ? userProfiles[s.userId] : undefined) || Object.values(userProfiles).find(p => p.displayName === s.name);
+                                const resolvedId = resolveUid(s.userId, s.name);
+                                const matchedProfile = resolvedId ? userProfiles[resolvedId] : undefined;
                                 const displayColor = matchedProfile?.color || s.color || "#ccc";
                                 return <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }}></div>;
                               })()}

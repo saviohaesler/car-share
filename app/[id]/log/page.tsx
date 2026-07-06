@@ -333,6 +333,26 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   if (!user) return null;
 
+  const nameToUid: Record<string, string> = {};
+  Object.entries(userProfiles).forEach(([uid, p]) => {
+    if (p?.displayName) nameToUid[p.displayName.trim().toLowerCase()] = uid;
+  });
+  logs.forEach(l => {
+    if (l.userId && l.userName) {
+      const k = l.userName.trim().toLowerCase();
+      if (!(k in nameToUid)) nameToUid[k] = l.userId;
+    }
+    l.fuelDetails?.forEach(d => {
+      if (d.userId && d.name) {
+        const k = d.name.trim().toLowerCase();
+        if (!(k in nameToUid)) nameToUid[k] = d.userId;
+      }
+    });
+  });
+
+  const resolveUid = (userId?: string, name?: string): string | undefined =>
+    userId || (name ? nameToUid[name.trim().toLowerCase()] : undefined);
+
   return (
     <main className="w-full h-full flex flex-col items-center px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
       <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md h-full flex flex-col">
@@ -437,7 +457,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                             <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-2xl border border-orange-100 dark:border-orange-900/30">
                                 <p className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase mb-3 tracking-widest underline underline-offset-4">Abrechnung (Gerundet 0.05)</p>
                                 {fuelSummary && fuelSummary.map((s, i) => {
-                                    const matchedProfile = (s.userId ? userProfiles[s.userId] : undefined) || Object.values(userProfiles).find(p => p.displayName === s.name);
+                                    const resolvedId = resolveUid(s.userId, s.name);
+                                    const matchedProfile = resolvedId ? userProfiles[resolvedId] : undefined;
                                     const displayColor = matchedProfile?.color || s.color || "#ccc";
                                     return (
                                         <div key={i} className="flex justify-between mb-2 border-b border-orange-200 dark:border-orange-900/40 pb-2 last:border-0 last:mb-0 text-sm">
@@ -489,7 +510,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                         <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest border-b border-gray-100 dark:border-zinc-800 pb-2 text-left text-black dark:text-white italic">Aufteilung</p>
                                         <div className="flex flex-col gap-3">
                                             {editingLog.fuelDetails.map((s, i) => {
-                                                const matchedProfile = (s.userId ? userProfiles[s.userId] : undefined) || Object.values(userProfiles).find(p => p.displayName === s.name);
+                                                const resolvedId = resolveUid(s.userId, s.name);
+                                                const matchedProfile = resolvedId ? userProfiles[resolvedId] : undefined;
                                                 const displayColor = matchedProfile?.color || s.color || "#ccc";
                                                 return (
                                                     <div key={i} className="flex justify-between items-center">
