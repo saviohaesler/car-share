@@ -54,6 +54,10 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <head>
+          {/* Next.js rendert bei appleWebApp.capable nur noch "mobile-web-app-capable";
+              iOS braucht für den Vollbild-Start vom Home-Bildschirm aber weiterhin
+              den Apple-eigenen Tag – sonst bleibt unten ein Systembalken stehen. */}
+          <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta
             id="meta-theme-color"
             name="theme-color"
