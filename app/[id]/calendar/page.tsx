@@ -14,7 +14,7 @@ import FullCalendar from '@fullcalendar/react';
 import type { DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
+import interactionPlugin, { type DateClickArg } from '@fullcalendar/interaction';
 import deLocale from '@fullcalendar/core/locales/de';
 
 interface Reservation {
@@ -191,7 +191,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
     }, 50);
   };
 
-  const handleDateClick = (arg: any) => {
+  const handleDateClick = (arg: DateClickArg) => {
     if (!user) return;
     setEditingEvent(null);
     setNewTitle("");
@@ -274,14 +274,22 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         });
       }
       setIsModalOpen(false);
-    } catch (error) { console.error(error); }
+    } catch (error) {
+      console.error(error);
+      alert("Reservierung konnte nicht gespeichert werden. Bitte erneut versuchen.");
+    }
   };
 
   const handleDelete = async () => {
     if (!editingEvent?.id || !user || editingEvent.userId !== user.uid) return;
     if (window.confirm("Reservierung löschen?")) {
-      await deleteDoc(doc(db, "cars", resolvedParams.id, "reservations", editingEvent.id));
-      setIsModalOpen(false);
+      try {
+        await deleteDoc(doc(db, "cars", resolvedParams.id, "reservations", editingEvent.id));
+        setIsModalOpen(false);
+      } catch (error) {
+        console.error(error);
+        alert("Reservierung konnte nicht gelöscht werden. Bitte erneut versuchen.");
+      }
     }
   };
 
@@ -528,6 +536,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
                     id="floating_title"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
+                    maxLength={200}
                     className="peer block w-full appearance-none rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-950 px-3 pb-2 pt-6 text-sm font-black text-black dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
                     placeholder=" "
                   />

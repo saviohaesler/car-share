@@ -102,6 +102,9 @@ service cloud.firestore {
         return signedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'joinToken'])
           && request.resource.data.members is list
+          // Keine doppelten UIDs in der Mitgliederliste (verhindert das
+          // Aufblähen des Personen-Zählers durch manipulierte Clients)
+          && request.resource.data.members.size() == request.resource.data.members.toSet().size()
           && membersRemoved().size() == 0
           && membersAdded().hasOnly([request.auth.uid])
           && request.resource.data.joinToken is string
@@ -169,25 +172,41 @@ service cloud.firestore {
                'userName', 'userColor', 'startKm', 'km', 'description',
                'timestamp', 'userId', 'type', 'fuelAmount', 'fuelDetails'
              ])
+          && request.resource.data.userName is string
+          && request.resource.data.userName.size() > 0
+          && request.resource.data.userName.size() <= 100
+          && request.resource.data.userColor is string
+          && request.resource.data.userColor.size() <= 32
+          && request.resource.data.description is string
+          && request.resource.data.description.size() <= 500
+          // Erzwingt serverTimestamp(); Logs ohne (gültigen) Zeitstempel wären
+          // in den orderBy('timestamp')-Queries unsichtbar und würden nie abgerechnet
+          && request.resource.data.timestamp == request.time
           && request.resource.data.km is number
           && request.resource.data.km >= 0
           && (
                (request.resource.data.type == 'drive'
                  && request.resource.data.startKm is number
                  && request.resource.data.startKm >= 0
-                 && request.resource.data.km >= request.resource.data.startKm)
+                 && request.resource.data.km >= request.resource.data.startKm
+                 && !('fuelAmount' in request.resource.data)
+                 && !('fuelDetails' in request.resource.data))
             || (request.resource.data.type == 'fuel'
+                 && !('startKm' in request.resource.data)
                  && request.resource.data.fuelAmount is number
                  && request.resource.data.fuelAmount > 0
-                 && request.resource.data.fuelDetails is list)
+                 && request.resource.data.fuelDetails is list
+                 && request.resource.data.fuelDetails.size() <= 100)
              );
 
         // Die App bearbeitet Logs nie - nur anlegen und löschen
         allow update: if false;
 
-        // Eigene Einträge löschen; der Owner darf beim Löschen des Autos aufräumen
+        // Eigene Einträge löschen (nur solange man Mitglied ist - entfernte
+        // Mitglieder können die Abrechnungshistorie nicht mehr manipulieren);
+        // der Owner darf beim Löschen des Autos aufräumen
         allow delete: if signedIn()
-          && (resource.data.userId == request.auth.uid || isCarOwner());
+          && ((resource.data.userId == request.auth.uid && isCarMember()) || isCarOwner());
       }
 
       // ---------- Reservierungen ----------
@@ -209,6 +228,9 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['title', 'userName', 'start', 'end', 'userId', 'allDay'])
           && request.resource.data.title is string
           && request.resource.data.title.size() <= 200
+          && request.resource.data.userName is string
+          && request.resource.data.userName.size() > 0
+          && request.resource.data.userName.size() <= 100
           && request.resource.data.start is timestamp
           && request.resource.data.end is timestamp
           && request.resource.data.end > request.resource.data.start
@@ -225,8 +247,10 @@ service cloud.firestore {
           && request.resource.data.end > request.resource.data.start
           && request.resource.data.allDay is bool;
 
+        // Eigene Reservierungen löschen (nur als Mitglied); der Owner darf
+        // beim Löschen des Autos aufräumen
         allow delete: if signedIn()
-          && (resource.data.userId == request.auth.uid || isCarOwner());
+          && ((resource.data.userId == request.auth.uid && isCarMember()) || isCarOwner());
       }
     }
 

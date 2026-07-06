@@ -3,13 +3,14 @@
 
 import { signInWithPopup, User } from "firebase/auth";
 import { auth, googleProvider, db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, arrayRemove, Timestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, setDoc, getDocs, deleteDoc, updateDoc, arrayRemove, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUserProfiles } from "../lib/useUserProfiles";
 import { useTheme } from "../lib/useTheme";
 import { useViewportReset } from "../lib/useViewportReset";
-import { ViewportDebug } from "../lib/ViewportDebug";
+import { ensureUserProfile } from "../lib/userProfile";
+import { PRESET_COLORS } from "../lib/constants";
 
 interface Car {
   id: string;
@@ -23,17 +24,6 @@ const INVITE_VALIDITY_DAYS = 7;
 
 const inviteExpiry = () =>
   Timestamp.fromMillis(Date.now() + INVITE_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
-
-const PRESET_COLORS = [
-  "#ef4444", // Red
-  "#f97316", // Orange
-  "#fbbf24", // Amber
-  "#10b981", // Green
-  "#06b6d4", // Cyan
-  "#3b82f6", // Blue
-  "#8b5cf6", // Violet
-  "#ec4899"  // Pink
-];
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -54,27 +44,16 @@ export default function Home() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
-      if (!currentUser) setCars([]);
-      if (currentUser) {
-        // Auto-Initialize user profile document inside Firestore
-        const userRef = doc(db, "users", currentUser.uid);
-        const userDoc = await getDoc(userRef);
-        let profileName = currentUser.displayName || "Neues Mitglied";
-        let profileColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
-        
-        if (!userDoc.exists()) {
-          await setDoc(userRef, {
-            uid: currentUser.uid,
-            displayName: profileName,
-            color: profileColor
-          }, { merge: true });
-        } else {
-          profileName = userDoc.data().displayName || profileName;
-          profileColor = userDoc.data().color || profileColor;
-        }
-        
-        setDisplayName(profileName);
-        setUserColor(profileColor);
+      if (!currentUser) {
+        setCars([]);
+        return;
+      }
+      try {
+        const profile = await ensureUserProfile(currentUser);
+        setDisplayName(profile.displayName);
+        setUserColor(profile.color);
+      } catch (error) {
+        console.error(error);
       }
     });
     return () => unsubscribe();
@@ -117,15 +96,20 @@ export default function Home() {
   const handleCreateCar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!carName.trim() || !user) return;
-    await addDoc(collection(db, "cars"), {
-      name: carName.trim(),
-      initialKm: Math.max(0, Number(newCarInitialKm) || 0),
-      ownerId: user.uid,
-      members: [user.uid],
-      createdAt: serverTimestamp(),
-    });
-    setCarName("");
-    setNewCarInitialKm("");
+    try {
+      await addDoc(collection(db, "cars"), {
+        name: carName.trim(),
+        initialKm: Math.max(0, Number(newCarInitialKm) || 0),
+        ownerId: user.uid,
+        members: [user.uid],
+        createdAt: serverTimestamp(),
+      });
+      setCarName("");
+      setNewCarInitialKm("");
+    } catch (error) {
+      console.error(error);
+      alert("Auto konnte nicht erstellt werden. Bitte erneut versuchen.");
+    }
   };
 
   const openEditCarModal = (car: Car) => {
@@ -139,11 +123,16 @@ export default function Home() {
 
   const saveCarSettings = async () => {
     if (!editCarData || !editCarData.name.trim()) return;
-    await updateDoc(doc(db, "cars", editCarData.id), {
-      name: editCarData.name.trim(),
-      initialKm: Math.max(0, Number(editCarData.initialKm) || 0)
-    });
-    setIsEditCarModalOpen(false);
+    try {
+      await updateDoc(doc(db, "cars", editCarData.id), {
+        name: editCarData.name.trim(),
+        initialKm: Math.max(0, Number(editCarData.initialKm) || 0)
+      });
+      setIsEditCarModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.");
+    }
   };
 
   const handleDeleteCar = async () => {
@@ -202,8 +191,13 @@ export default function Home() {
 
   const removeMember = async (carId: string, memberId: string) => {
     if (window.confirm("Mitglied wirklich entfernen?")) {
-      await updateDoc(doc(db, "cars", carId), { members: arrayRemove(memberId) });
-      if (memberId === user?.uid) setIsMemberModalOpen(false);
+      try {
+        await updateDoc(doc(db, "cars", carId), { members: arrayRemove(memberId) });
+        if (memberId === user?.uid) setIsMemberModalOpen(false);
+      } catch (error) {
+        console.error(error);
+        alert("Mitglied konnte nicht entfernt werden. Bitte erneut versuchen.");
+      }
     }
   };
 
@@ -268,7 +262,7 @@ export default function Home() {
             </div>
 
             <form onSubmit={handleCreateCar} className="flex flex-col gap-2 bg-gray-50 dark:bg-zinc-900/50 p-4 rounded-3xl border border-dashed border-gray-300 dark:border-zinc-700 shrink-0">
-               <input type="text" placeholder="Auto Name..." value={carName} onChange={(e) => setCarName(e.target.value)} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition" required />
+               <input type="text" placeholder="Auto Name..." value={carName} onChange={(e) => setCarName(e.target.value)} maxLength={100} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition" required />
                <input type="number" placeholder="Start KM-Stand..." value={newCarInitialKm} onChange={(e) => setNewCarInitialKm(e.target.value)} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition" />
                <button type="submit" className="bg-gray-800 dark:bg-zinc-750 text-white p-4 rounded-2xl font-bold active:scale-95 transition mt-1">Hinzufügen</button>
             </form>
@@ -294,7 +288,7 @@ export default function Home() {
             <div className="flex flex-col gap-6">
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Anzeigename</label>
-                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border-2 border-gray-200 dark:border-zinc-800/80 font-black text-gray-900 dark:text-white mt-2 outline-none focus:border-blue-500 transition-colors shadow-sm" />
+                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={100} className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border-2 border-gray-200 dark:border-zinc-800/80 font-black text-gray-900 dark:text-white mt-2 outline-none focus:border-blue-500 transition-colors shadow-sm" />
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Kalender Farbe</label>
@@ -340,7 +334,7 @@ export default function Home() {
             <div className="flex flex-col gap-4">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1 tracking-widest">Name</label>
-                <input type="text" value={editCarData.name} onChange={(e) => setEditCarData({...editCarData, name: e.target.value})} className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border-2 border-gray-200 dark:border-zinc-800/80 font-black text-gray-900 dark:text-white outline-none focus:border-blue-500 shadow-sm" />
+                <input type="text" value={editCarData.name} onChange={(e) => setEditCarData({...editCarData, name: e.target.value})} maxLength={100} className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border-2 border-gray-200 dark:border-zinc-800/80 font-black text-gray-900 dark:text-white outline-none focus:border-blue-500 shadow-sm" />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1 tracking-widest">Start KM-Stand</label>

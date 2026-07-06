@@ -1,49 +1,24 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, getDocs, deleteDoc, setDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, getDocs, deleteDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
 import { User } from "firebase/auth";
 import { Link } from "next-view-transitions";
 import { useUserProfiles } from "../../../lib/useUserProfiles";
 import { useTheme } from "../../../lib/useTheme";
+import { ensureUserProfile } from "../../../lib/userProfile";
+import { DriveLog, FuelDetail, formatKm, buildUidResolver } from "../../../lib/logs";
 
-interface FuelDetail {
-  name: string;
-  userId?: string;
-  dist: number;
-  debt: number;
-  color?: string;
-}
-
-interface DriveLog {
-  id: string;
-  userName: string;
-  userColor?: string;
-  km: number;
-  startKm?: number;
-  description: string;
-  timestamp: Timestamp | null;
-  userId: string;
-  type?: "drive" | "fuel";
-  fuelAmount?: number;
-  fuelDetails?: FuelDetail[];
-}
-
-const PRESET_COLORS = [
-  "#ef4444", // Red
-  "#f97316", // Orange
-  "#fbbf24", // Amber
-  "#10b981", // Green
-  "#06b6d4", // Cyan
-  "#3b82f6", // Blue
-  "#8b5cf6", // Violet
-  "#ec4899"  // Pink
-];
-
-const formatKm = (km: number | string | undefined) => {
-  if (km === undefined || km === null) return '?';
-  return km.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+// FNV-1a-Hash mit fester Länge, damit die deterministische Tankstopp-ID
+// nicht mit jeder Abrechnung länger wird (sie referenziert ihren Vorgänger)
+const hashId = (s: string) => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
 };
 
 export default function DriveLogPage({ params }: { params: Promise<{ id: string }> }) {
@@ -107,30 +82,15 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (u) => {
-      if (!u) { 
-        window.location.href = "/"; 
-      } else { 
+      if (!u) {
+        window.location.href = "/";
+      } else {
         setUser(u);
-        const userRef = doc(db, "users", u.uid);
-        const userDoc = await getDoc(userRef);
-        let profileName = u.displayName || "Neues Mitglied";
-        let profileColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
-        
-        if (!userDoc.exists()) {
-          await setDoc(userRef, {
-            uid: u.uid,
-            displayName: profileName,
-            color: profileColor
-          }, { merge: true });
-        } else {
-          profileName = userDoc.data().displayName || profileName;
-          profileColor = userDoc.data().color || profileColor;
+        try {
+          setUserProfile(await ensureUserProfile(u));
+        } catch (error) {
+          console.error(error);
         }
-
-        setUserProfile({
-          displayName: profileName,
-          color: profileColor
-        });
       }
     });
     return () => unsubscribe();
@@ -170,7 +130,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         setLogs(fetchedLogs);
         
         if (fetchedLogs.length > 0) {
-            const lastDrive = fetchedLogs.find(l => l.km);
+            const lastDrive = fetchedLogs.find(l => typeof l.km === "number");
             if (lastDrive) {
                 const lastVal = lastDrive.km.toString();
                 setStartKm(prev => prev === "" ? lastVal : prev);
@@ -220,14 +180,17 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         userColor: userProfile.color,
         startKm: sKm,
         km: eKm,
-        description: "", 
+        description: "",
         timestamp: serverTimestamp(),
         userId: user.uid,
         type: "drive"
       });
-      setEndKm(eKm.toString()); 
+      setEndKm(eKm.toString());
       setStartKm(eKm.toString());
-    } catch (error) { console.error(error); }
+    } catch (error) {
+      console.error(error);
+      alert("Fahrt konnte nicht gespeichert werden. Bitte erneut versuchen.");
+    }
     setIsSaving(false);
   };
 
@@ -304,7 +267,13 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     }
 
     try {
-      await addDoc(collection(db, "cars", resolvedParams.id, "logs"), {
+      // Deterministische Dokument-ID pro Abrechnungszeitraum: Erfassen zwei
+      // Mitglieder gleichzeitig einen Tankstopp, zielt der zweite auf dieselbe
+      // ID und wird serverseitig abgelehnt (Rules erlauben kein Update) -
+      // so werden dieselben Fahrten nie doppelt abgerechnet.
+      const anchor = lastFuelIndex !== -1 ? currentLogs[lastFuelIndex].id : "start";
+      const fuelDocId = `fuel-after-${hashId(anchor)}`;
+      await setDoc(doc(db, "cars", resolvedParams.id, "logs", fuelDocId), {
         userName: userProfile.displayName,
         userColor: userProfile.color,
         km: Math.max(...relevantLogs.map(d => d.km), lastKnownKm),
@@ -316,7 +285,10 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         type: "fuel"
       });
       setFuelSummary(summary);
-    } catch (error) { console.error(error); }
+    } catch (error) {
+      console.error(error);
+      alert("Tankstopp konnte nicht gespeichert werden. Bitte erneut versuchen.");
+    }
     setIsSaving(false);
   };
 
@@ -327,31 +299,16 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
       try {
         await deleteDoc(doc(db, "cars", resolvedParams.id, "logs", editingLog.id));
         setIsModalOpen(false);
-      } catch (error) { console.error(error); }
+      } catch (error) {
+        console.error(error);
+        alert("Eintrag konnte nicht gelöscht werden. Bitte erneut versuchen.");
+      }
     }
   };
 
   if (!user) return null;
 
-  const nameToUid: Record<string, string> = {};
-  Object.entries(userProfiles).forEach(([uid, p]) => {
-    if (p?.displayName) nameToUid[p.displayName.trim().toLowerCase()] = uid;
-  });
-  logs.forEach(l => {
-    if (l.userId && l.userName) {
-      const k = l.userName.trim().toLowerCase();
-      if (!(k in nameToUid)) nameToUid[k] = l.userId;
-    }
-    l.fuelDetails?.forEach(d => {
-      if (d.userId && d.name) {
-        const k = d.name.trim().toLowerCase();
-        if (!(k in nameToUid)) nameToUid[k] = d.userId;
-      }
-    });
-  });
-
-  const resolveUid = (userId?: string, name?: string): string | undefined =>
-    userId || (name ? nameToUid[name.trim().toLowerCase()] : undefined);
+  const resolveUid = buildUidResolver(userProfiles, logs);
 
   return (
     <main className="w-full h-full flex flex-col items-center px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">

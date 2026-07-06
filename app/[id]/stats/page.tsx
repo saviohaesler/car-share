@@ -1,55 +1,19 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
 import { Link } from "next-view-transitions";
 import { User } from "firebase/auth";
 import { useUserProfiles } from "../../../lib/useUserProfiles";
 import { useTheme } from "../../../lib/useTheme";
-
-interface FuelDetail {
-  name: string;
-  userId?: string;
-  dist: number;
-  debt: number;
-  color?: string;
-}
-
-interface DriveLog {
-  id: string;
-  userName: string;
-  userColor?: string;
-  km: number;
-  startKm?: number;
-  description: string;
-  timestamp: Timestamp | null;
-  userId: string;
-  type?: "drive" | "fuel";
-  fuelAmount?: number;
-  fuelDetails?: FuelDetail[];
-}
+import { ensureUserProfile } from "../../../lib/userProfile";
+import { DriveLog, formatKm, buildUidResolver } from "../../../lib/logs";
 
 const MONTHS_DE = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni", 
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
   "Juli", "August", "September", "Oktober", "November", "Dezember"
 ];
-
-const PRESET_COLORS = [
-  "#ef4444", // Red
-  "#f97316", // Orange
-  "#fbbf24", // Amber
-  "#10b981", // Green
-  "#06b6d4", // Cyan
-  "#3b82f6", // Blue
-  "#8b5cf6", // Violet
-  "#ec4899"  // Pink
-];
-
-const formatKm = (km: number | string | undefined) => {
-  if (km === undefined || km === null) return '?';
-  return km.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
-};
 
 export default function StatsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -78,19 +42,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         window.location.href = "/";
       } else {
         setUser(u);
-
-        // Auto-Initialize user profile document inside Firestore if it doesn't exist
-        const userRef = doc(db, "users", u.uid);
-        const userDoc = await getDoc(userRef);
-        if (!userDoc.exists()) {
-          const profileName = u.displayName || "Neues Mitglied";
-          const profileColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
-          await setDoc(userRef, {
-            uid: u.uid,
-            displayName: profileName,
-            color: profileColor
-          }, { merge: true });
-        }
+        ensureUserProfile(u).catch(console.error);
 
         try {
           const carDoc = await getDoc(doc(db, "cars", resolvedParams.id));
@@ -188,29 +140,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
     return `${formatMonthYear(start)} - ${formatMonthYear(today)}`;
   };
 
-  // Build a name -> Google-account (uid) map so that legacy entries without a
-  // stored userId are still attributed to the correct account. Everything is
-  // aggregated per Google account (uid), never per raw display name, so the
-  // same person can no longer show up twice (e.g. "Savio" and "savio").
-  const nameToUid: Record<string, string> = {};
-  Object.entries(userProfiles).forEach(([uid, p]) => {
-    if (p?.displayName) nameToUid[p.displayName.trim().toLowerCase()] = uid;
-  });
-  logs.forEach(l => {
-    if (l.userId && l.userName) {
-      const k = l.userName.trim().toLowerCase();
-      if (!(k in nameToUid)) nameToUid[k] = l.userId;
-    }
-    l.fuelDetails?.forEach(d => {
-      if (d.userId && d.name) {
-        const k = d.name.trim().toLowerCase();
-        if (!(k in nameToUid)) nameToUid[k] = d.userId;
-      }
-    });
-  });
-
-  const resolveUid = (userId?: string, name?: string): string | undefined =>
-    userId || (name ? nameToUid[name.trim().toLowerCase()] : undefined);
+  const resolveUid = buildUidResolver(userProfiles, logs);
 
   const displayNameFor = (uid: string | undefined, fallback: string) =>
     (uid && userProfiles[uid]?.displayName) || fallback;
@@ -316,9 +246,18 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
     })
     .sort((a, b) => b.dist - a.dist);
 
-  const yearsAvailable = Array.from(
-    new Set([new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2])
-  ).sort((a, b) => b - a);
+  // Immer die letzten 3 Jahre anbieten und bei älteren Protokollen bis zum
+  // ältesten Eintrag erweitern (zuvor waren Logs vor diesem Fenster in der
+  // Monatsansicht nicht erreichbar)
+  const currentYear = new Date().getFullYear();
+  const oldestLogYear = logs.reduce((min, l) => {
+    const y = l.timestamp?.toDate().getFullYear();
+    return y && y < min ? y : min;
+  }, currentYear);
+  const yearsAvailable: number[] = [];
+  for (let y = currentYear; y >= Math.min(oldestLogYear, currentYear - 2); y--) {
+    yearsAvailable.push(y);
+  }
 
   if (!user) return null;
 

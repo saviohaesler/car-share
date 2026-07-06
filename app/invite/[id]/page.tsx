@@ -2,29 +2,19 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { doc, getDoc, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db, auth, googleProvider } from "../../../lib/firebase";
 import { signInWithPopup, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "../../../lib/useTheme";
-
-const PRESET_COLORS = [
-  "#ef4444", // Red
-  "#f97316", // Orange
-  "#fbbf24", // Amber
-  "#10b981", // Green
-  "#06b6d4", // Cyan
-  "#3b82f6", // Blue
-  "#8b5cf6", // Violet
-  "#ec4899"  // Pink
-];
+import { ensureUserProfile } from "../../../lib/userProfile";
 
 export default function InvitePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
-  
-  const [carName, setCarName] = useState("Loading...");
+
+  const [carName, setCarName] = useState("Lade...");
   const [carId, setCarId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isJoining, setIsJoining] = useState(false);
@@ -35,17 +25,10 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Auto-Initialize user profile document inside Firestore if it doesn't exist
-        const userRef = doc(db, "users", currentUser.uid);
-        const userDoc = await getDoc(userRef);
-        if (!userDoc.exists()) {
-          const profileName = currentUser.displayName || "New Member";
-          const profileColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
-          await setDoc(userRef, {
-            uid: currentUser.uid,
-            displayName: profileName,
-            color: profileColor
-          }, { merge: true });
+        try {
+          await ensureUserProfile(currentUser);
+        } catch (error) {
+          console.error(error);
         }
       }
     });
@@ -54,40 +37,40 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
 
   useEffect(() => {
     const fetchInvite = async () => {
-      // New model: The link contains a random invitation token
+      // Neues Modell: Der Link enthält einen zufälligen Einladungs-Token
       try {
         const inviteSnap = await getDoc(doc(db, "invites", resolvedParams.id));
         if (inviteSnap.exists()) {
           const invite = inviteSnap.data();
           if (invite.expiresAt?.toDate && invite.expiresAt.toDate() < new Date()) {
-            setErrorMsg("This invitation has expired. Please request a new link.");
+            setErrorMsg("Diese Einladung ist abgelaufen. Bitte einen neuen Link anfordern.");
             return;
           }
           setCarId(invite.carId);
-          setCarName(invite.carName || "a shared car");
+          setCarName(invite.carName || "ein geteiltes Auto");
           return;
         }
       } catch (error) {
-        console.warn("Could not load invitation:", error);
+        console.warn("Einladung konnte nicht geladen werden:", error);
       }
 
-      // Legacy link (/invite/{carId}): Joining via this link is no longer possible,
-      // but existing members will still be redirected correctly.
+      // Legacy-Link (/invite/{carId}): Beitreten ist darüber nicht mehr möglich,
+      // bestehende Mitglieder werden aber weiterhin korrekt weitergeleitet.
       setCarId(resolvedParams.id);
       try {
         const docSnap = await getDoc(doc(db, "cars", resolvedParams.id));
-        setCarName(docSnap.exists() ? docSnap.data().name : "a shared car");
+        setCarName(docSnap.exists() ? docSnap.data().name : "ein geteiltes Auto");
       } catch {
-        // Permission denied is expected for guests or non-members
-        setCarName("a shared car");
+        // Permission denied ist für Gäste bzw. Nicht-Mitglieder zu erwarten
+        setCarName("ein geteiltes Auto");
       }
     };
     fetchInvite();
   }, [resolvedParams.id]);
 
   const handleLogin = async () => {
-    try { await signInWithPopup(auth, googleProvider); } 
-    catch (error) { console.error("Login Error:", error); }
+    try { await signInWithPopup(auth, googleProvider); }
+    catch (error) { console.error("Login-Fehler:", error); }
   };
 
   const handleJoinCar = async () => {
@@ -95,22 +78,21 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
     setIsJoining(true);
 
     try {
-      // Already a member? Then redirect immediately without write access
+      // Bereits Mitglied? Dann direkt weiterleiten, ohne Schreibzugriff
       const carSnap = await getDoc(doc(db, "cars", carId)).catch(() => null);
       if (!(carSnap?.exists() && (carSnap.data().members || []).includes(user.uid))) {
-        // The token is sent along so that the Firestore rules can
-        // verify the invitation server-side (valid & not expired)
+        // Der Token wird mitgesendet, damit die Firestore-Rules die Einladung
+        // serverseitig prüfen können (gültig & nicht abgelaufen)
         await updateDoc(doc(db, "cars", carId), {
           members: arrayUnion(user.uid),
           joinToken: resolvedParams.id
         });
       }
 
-      // CORRECTED LINK: Go directly to the log in the ID folder
       router.push(`/${carId}/log`);
     } catch (error) {
-      console.error("Error joining:", error);
-      setErrorMsg("Error joining. The link is invalid or expired.");
+      console.error("Fehler beim Beitreten:", error);
+      setErrorMsg("Beitritt fehlgeschlagen. Der Link ist ungültig oder abgelaufen.");
     }
     setIsJoining(false);
   };
@@ -120,7 +102,7 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
       <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 text-center max-w-md w-full border border-gray-100 dark:border-zinc-800/80">
         
         <h1 className="text-3xl font-black text-gray-800 dark:text-zinc-100 tracking-tight italic uppercase mb-8">
-          Invitation
+          Einladung
         </h1>
 
         <div className="bg-gray-50 dark:bg-zinc-950/50 p-6 rounded-3xl mb-8 border border-gray-100 dark:border-zinc-800/80">
@@ -128,7 +110,7 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
             <p className="text-red-500 dark:text-red-400 font-bold italic">{errorMsg}</p>
           ) : (
             <>
-              <p className="text-gray-400 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">You were invited to</p>
+              <p className="text-gray-400 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Du wurdest eingeladen zu</p>
               <h2 className="text-2xl font-black text-gray-900 dark:text-zinc-100 italic uppercase">
                 {carName}
               </h2>
@@ -141,7 +123,7 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
             {!user ? (
               <div className="flex flex-col items-center">
                 <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium italic mb-6">
-                  Sign in to join the group.
+                  Melde dich an, um der Gruppe beizutreten.
                 </p>
                 <button 
                   onClick={handleLogin}
@@ -153,26 +135,26 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
-                  Continue with Google
+                  Weiter mit Google
                 </button>
               </div>
             ) : (
               <>
                 <div className="flex flex-col items-center gap-1 mb-4">
-                   <p className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-tighter">Signed in as</p>
+                   <p className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-tighter">Angemeldet als</p>
                    <p className="font-black text-gray-800 dark:text-zinc-100 text-lg">{user.displayName}</p>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={handleJoinCar}
                   disabled={isJoining}
                   className="bg-gray-800 dark:bg-zinc-100 text-white dark:text-zinc-950 font-black py-5 rounded-[2rem] w-full shadow-xl active:scale-95 transition text-lg uppercase italic disabled:opacity-50"
                 >
-                  {isJoining ? "Joining..." : "Join Now"}
+                  {isJoining ? "Trete bei..." : "Jetzt beitreten"}
                 </button>
 
                 <p className="text-gray-400 dark:text-zinc-500 text-xs font-bold uppercase mt-2">
-                  Not your account? <button onClick={() => auth.signOut()} className="text-red-500 dark:text-red-400 hover:underline">Sign out</button>
+                  Nicht dein Konto? <button onClick={() => auth.signOut()} className="text-red-500 dark:text-red-400 hover:underline">Abmelden</button>
                 </p>
               </>
             )}
@@ -184,12 +166,12 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
             href="/" 
             className="inline-block bg-gray-800 dark:bg-zinc-100 text-white dark:text-zinc-950 font-bold py-4 px-8 rounded-2xl active:scale-95 transition uppercase text-sm"
           >
-            Back to Home
+            Zur Startseite
           </Link>
         )}
       </div>
       
-      <p className="mt-8 text-gray-300 dark:text-zinc-800 font-black italic tracking-tighter uppercase text-xs">Car Share App</p>
+      <p className="mt-8 text-gray-300 dark:text-zinc-800 font-black italic tracking-tighter uppercase text-xs">CarShare App</p>
     </main>
   );
 }
