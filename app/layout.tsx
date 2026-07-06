@@ -34,13 +34,11 @@ export const metadata: Metadata = {
     icon: "/icon.png",
     apple: "/icon.png",
   },
+  // Bewusst KEINE Legacy-Metas (apple-mobile-web-app-capable / status-bar-style):
+  // iOS 26 bemisst das Web-App-Fenster mit ihnen um die Statusleistenhöhe zu kurz
+  // (toter Balken unten). Der Standalone-Modus kommt allein aus dem Web-Manifest
+  // (app/manifest.ts, display: "standalone"), wie bei modernen PWAs üblich.
   appleWebApp: {
-    capable: true,
-    // Kein "black-translucent": iOS 26 bemisst das Web-App-Fenster damit um die
-    // Statusleistenhöhe zu kurz und lässt unten einen toten Balken stehen.
-    // Die Statusleiste wird stattdessen über das dynamische theme-color-Meta
-    // passend zum App-Hintergrund eingefärbt.
-    statusBarStyle: "default",
     title: "CarShare",
   },
 };
