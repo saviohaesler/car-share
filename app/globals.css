@@ -33,13 +33,11 @@ body {
 }
 
 html, body {
-  /* Als installierte Web-App den GESAMTEN iPhone-Bildschirm ausfüllen
-     (edge-to-edge). "inset: 0" spannt die fixe Fläche über die komplette
-     Viewport-Höhe – inklusive der unteren Safe-Area –, sodass unten kein
-     schwarzer Balken durchscheint. "height: 100%" allein deckt auf iOS
-     im Standalone-Modus die untere Safe-Area nicht ab. */
-  position: fixed;
-  inset: 0;
+  /* Volle Höhe über height:100% (mit viewport-fit=cover = gesamter
+     iPhone-Bildschirm inkl. Safe-Areas). KEIN "position: fixed" auf <html>:
+     das verhindert im iOS-Standalone-Modus, dass die untere Safe-Area
+     (Home-Indicator) gefüllt wird, und erzeugt dort einen schwarzen Balken. */
+  height: 100%;
   overflow: hidden; /* Verhindert das Scrollen der gesamten Seite */
   /* Verhindert Pull-to-Refresh / Rubber-Banding in Chrome/Safari */
   overscroll-behavior: none;
