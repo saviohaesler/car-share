@@ -603,25 +603,26 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                     <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-2xl p-4 shadow-sm">
                       <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest border-b border-gray-100 dark:border-zinc-800 pb-2 text-left italic">Aufteilung</p>
                       <div className="flex flex-col gap-3">
-                        {selectedLog.fuelDetails.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center bg-gray-50/50 dark:bg-zinc-950/30 p-2.5 rounded-xl border border-gray-100/50 dark:border-zinc-800/30">
-                            <div className="flex items-center gap-2 text-left">
-                              {(() => {
-                                const resolvedId = resolveUid(s.userId, s.name);
-                                const matchedProfile = resolvedId ? userProfiles[resolvedId] : undefined;
-                                const displayColor = matchedProfile?.color || s.color || "#ccc";
-                                return <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }}></div>;
-                              })()}
-                              <div className="flex flex-col">
-                                <span className="font-bold text-gray-800 dark:text-zinc-300 text-xs">{(s.userId ? userProfiles[s.userId]?.displayName : undefined) || s.name}</span>
-                                <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(s.dist)} km</span>
+                        {selectedLog.fuelDetails.map((s, i) => {
+                          const resolvedId = resolveUid(s.userId, s.name);
+                          const matchedProfile = resolvedId ? userProfiles[resolvedId] : undefined;
+                          const displayColor = matchedProfile?.color || s.color || "#ccc";
+                          const displayName = matchedProfile?.displayName || s.name;
+                          return (
+                            <div key={i} className="flex justify-between items-center bg-gray-50/50 dark:bg-zinc-950/30 p-2.5 rounded-xl border border-gray-100/50 dark:border-zinc-800/30">
+                              <div className="flex items-center gap-2 text-left">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }}></div>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-gray-800 dark:text-zinc-300 text-xs">{displayName}</span>
+                                  <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase">{formatKm(s.dist)} km</span>
+                                </div>
                               </div>
+                              <span className={`font-black ${s.debt > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'} text-xs`}>
+                                {s.debt > 0 ? `${s.debt.toFixed(2)}.-` : '0.00'}
+                              </span>
                             </div>
-                            <span className={`font-black ${s.debt > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-zinc-500'} text-xs`}>
-                              {s.debt > 0 ? `${s.debt.toFixed(2)}.-` : '0.00'}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
