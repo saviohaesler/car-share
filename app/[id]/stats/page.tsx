@@ -603,7 +603,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                         : 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-gray-50/80 dark:hover:bg-zinc-800/50'
                     }`}
                   >
-                    <div className="absolute left-0 top-0 bottom-0 w-2" style={{ backgroundColor: log.type === 'fuel' ? '#f97316' : (log.userColor || "#ccc") }} />
+                    <div className="absolute left-0 top-0 bottom-0 w-2" style={{ backgroundColor: log.type === 'fuel' ? '#f97316' : (userProfiles[log.userId]?.color || log.userColor || "#ccc") }} />
                     <div className="flex flex-col text-left">
                       <span className="font-black text-gray-800 dark:text-zinc-200 text-base leading-tight">
                         {log.type === 'fuel' ? `GETANKT` : `${formatKm(log.startKm)} → ${formatKm(log.km)} km`}

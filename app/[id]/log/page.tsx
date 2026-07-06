@@ -408,7 +408,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                   {log.type === 'fuel' && (
                                     <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-tighter">bei {formatKm(log.km)} km</span>
                                   )}
-                                  <span className="text-[10px] font-black uppercase mt-1" style={{ color: userProfiles[log.userId]?.color || log.userColor || "#9ca3af" }}>{log.userName}</span>
+                                  <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-1">{log.userName}</span>
                               </div>
                               <div className="text-right flex flex-col items-end shrink-0">
                                   <span className="text-[11px] font-black text-gray-400 dark:text-zinc-500 uppercase">{log.timestamp?.toDate().toLocaleDateString('de-DE')}</span>
