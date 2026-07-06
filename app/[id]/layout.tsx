@@ -21,7 +21,7 @@ export default function CarLayout({
   const isStatsActive = pathname?.endsWith("/stats");
 
   return (
-    <div className="w-full h-full overflow-hidden flex flex-col bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 relative transition-colors duration-200">
+    <div className="w-full h-dvh overflow-hidden flex flex-col bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 relative transition-colors duration-200">
       
       {/* Page content wrapper */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
