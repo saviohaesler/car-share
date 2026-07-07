@@ -419,8 +419,8 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
         </div>
 
         {/* CUSTOM TOOLBAR */}
-        <div className="flex flex-col gap-3 mb-6">
-          <div className="flex justify-between items-center bg-white dark:bg-zinc-900 p-1.5 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80">
+        <div className="flex flex-col gap-3 mb-6 lg:flex-row">
+          <div className="flex justify-between items-center bg-white dark:bg-zinc-900 p-1.5 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 lg:flex-1">
             <button onClick={goToBack} className="p-3 px-5 text-gray-700 dark:text-zinc-300 active:bg-gray-100 dark:active:bg-zinc-800 rounded-xl transition flex items-center justify-center">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6"></polyline>
@@ -438,7 +438,7 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
             </button>
           </div>
 
-          <div className="flex bg-white dark:bg-zinc-900 p-1 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 shrink-0">
+          <div className="flex bg-white dark:bg-zinc-900 p-1 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 shrink-0 lg:flex-1">
             {[
               { id: 'dayGridMonth', label: 'Monat' },
               { id: 'timeGridThreeDay', label: '3 Tage' },

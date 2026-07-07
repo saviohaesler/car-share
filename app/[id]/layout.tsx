@@ -35,8 +35,11 @@ export default function CarLayout({
       {/* Persistent Static Tab Bar */}
       <nav
         style={{ viewTransitionName: "bottom-nav" }}
-        className="relative shrink-0 w-full h-[calc(4rem+env(safe-area-inset-bottom))] pb-[calc(env(safe-area-inset-bottom)*0.4)] pt-2 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex items-stretch z-50 px-6 text-center"
+        className="relative shrink-0 w-full h-[calc(4rem+env(safe-area-inset-bottom))] pb-[calc(env(safe-area-inset-bottom)*0.4)] pt-2 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-zinc-800/80 flex justify-center items-stretch z-50 px-6 text-center"
       >
+        {/* Auf dem Desktop bleiben die Tabs mittig gebündelt statt über die
+            ganze Breite verteilt (max-w-md greift auf dem Handy nicht) */}
+        <div className="flex items-stretch w-full max-w-md">
         <Link 
           href={`/${resolvedParams.id}/log`} 
           className={`flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition ${
@@ -93,6 +96,7 @@ export default function CarLayout({
           </div>
           <span className={`text-[10px] uppercase tracking-widest ${isStatsActive ? "font-black" : "font-bold"}`}>Statistik</span>
         </Link>
+        </div>
       </nav>
     </div>
   );

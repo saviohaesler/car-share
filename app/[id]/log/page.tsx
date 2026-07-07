@@ -329,7 +329,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   return (
     <main className="w-full h-full flex flex-col items-center px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
-      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md h-full flex flex-col">
+      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md lg:max-w-5xl h-full flex flex-col">
         
         {/* HEADER EXAKT WIE IM KALENDER */}
         <div className="flex justify-between items-center mb-6">
@@ -342,8 +342,11 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
           <div className="w-16"></div>
         </div>
 
+        {/* Desktop: Erfassen links, Historie rechts */}
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:gap-8">
+
         {/* ERFASSEN FORM */}
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 mb-6 border border-gray-100 dark:border-zinc-800/80 shrink-0">
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 mb-6 border border-gray-100 dark:border-zinc-800/80 shrink-0 lg:w-96 lg:self-start lg:mb-0">
           <div className="flex justify-between items-center mb-4 ml-1">
             <h2 className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Erfassen</h2>
             <button onClick={() => { setIsFuelModalOpen(true); setFuelSummary(null); setFuelPrice(""); }} className="bg-orange-100 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 text-[10px] font-black px-3 py-1 rounded-full border border-orange-200 dark:border-orange-900/40 uppercase active:scale-95 transition flex items-center justify-center gap-1">
@@ -377,7 +380,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         </div>
 
         {/* HISTORIE */}
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden lg:min-w-0">
             <h2 className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest ml-4 mb-4 shrink-0 text-left">Historie</h2>
             <div className="flex flex-col gap-4 overflow-y-auto pb-6 px-1 custom-scrollbar flex-1">
                 
@@ -413,6 +416,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                   })
                 )}
             </div>
+        </div>
+
         </div>
 
         {/* MODAL TANKEN */}

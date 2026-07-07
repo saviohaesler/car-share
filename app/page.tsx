@@ -357,7 +357,7 @@ export default function Home() {
 
   return (
     <main className="w-full h-full flex flex-col items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] bg-gray-50 dark:bg-zinc-950 overflow-hidden relative text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
-      <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 max-w-md w-full flex flex-col max-h-full text-center border border-gray-100 dark:border-zinc-800/80">
+      <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 max-w-md lg:max-w-2xl w-full flex flex-col max-h-full text-center border border-gray-100 dark:border-zinc-800/80">
         
         <div className="flex justify-between items-center mb-6 px-2 shrink-0">
           <button onClick={() => setIsHelpModalOpen(true)} aria-label="Hilfe" className="p-2 bg-gray-50 dark:bg-zinc-800 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400">
@@ -387,7 +387,7 @@ export default function Home() {
 
             <div className="text-left flex flex-col flex-1 overflow-hidden min-h-0">
               <h2 className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest ml-1 shrink-0">Meine Autos</h2>
-              <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+              <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1 custom-scrollbar lg:grid lg:grid-cols-2 lg:content-start">
                 {cars.map((car) => (
                   <div key={car.id} className="relative shrink-0">
                     <Link href={`/${car.id}/log`} className="bg-white dark:bg-zinc-900 border-2 border-gray-100 dark:border-zinc-800/80 p-5 rounded-3xl flex justify-between items-center transition shadow-sm active:scale-[0.98]">
@@ -414,10 +414,10 @@ export default function Home() {
               </div>
             </div>
 
-            <form onSubmit={handleCreateCar} className="flex flex-col gap-2 bg-gray-50 dark:bg-zinc-900/50 p-4 rounded-3xl border border-dashed border-gray-300 dark:border-zinc-700 shrink-0">
-               <input type="text" placeholder="Auto Name..." value={carName} onChange={(e) => setCarName(e.target.value)} maxLength={100} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition" required />
-               <input type="number" placeholder="Start KM-Stand..." value={newCarInitialKm} onChange={(e) => setNewCarInitialKm(e.target.value)} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition" />
-               <button type="submit" className="bg-gray-800 dark:bg-zinc-750 text-white p-4 rounded-2xl font-bold active:scale-95 transition mt-1">Hinzufügen</button>
+            <form onSubmit={handleCreateCar} className="flex flex-col gap-2 bg-gray-50 dark:bg-zinc-900/50 p-4 rounded-3xl border border-dashed border-gray-300 dark:border-zinc-700 shrink-0 lg:flex-row lg:items-center">
+               <input type="text" placeholder="Auto Name..." value={carName} onChange={(e) => setCarName(e.target.value)} maxLength={100} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition lg:flex-1" required />
+               <input type="number" placeholder="Start KM-Stand..." value={newCarInitialKm} onChange={(e) => setNewCarInitialKm(e.target.value)} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl w-full font-bold text-gray-900 dark:text-white shadow-sm outline-none border border-gray-100 dark:border-zinc-800 focus:border-blue-500 transition lg:flex-1" />
+               <button type="submit" className="bg-gray-800 dark:bg-zinc-750 text-white p-4 rounded-2xl font-bold active:scale-95 transition mt-1 lg:mt-0 lg:w-auto lg:px-8 lg:shrink-0">Hinzufügen</button>
             </form>
 
             <button onClick={() => auth.signOut()} className="bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-bold py-4 rounded-2xl active:scale-95 transition uppercase text-xs tracking-widest shrink-0 mt-2">Abmelden</button>

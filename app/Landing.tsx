@@ -112,24 +112,24 @@ export default function Landing() {
   // in ihrem eigenen Container
   return (
     <main className="w-full h-dvh overflow-y-auto bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
-      <div className="max-w-md mx-auto px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-[calc(2.5rem+env(safe-area-inset-bottom))] flex flex-col gap-8">
+      <div className="max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-[calc(2.5rem+env(safe-area-inset-bottom))] flex flex-col gap-8 lg:gap-12">
 
         {/* HERO */}
-        <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 border border-gray-100 dark:border-zinc-800/80 text-center">
-          <h1 className="text-4xl font-black tracking-tight italic uppercase">
+        <div className="bg-white dark:bg-zinc-900 p-8 lg:p-14 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 border border-gray-100 dark:border-zinc-800/80 text-center">
+          <h1 className="text-4xl lg:text-6xl font-black tracking-tight italic uppercase">
             {"CARSHARE".split("").map((char, index) => (
               <span key={index} style={{ color: PRESET_COLORS[index % PRESET_COLORS.length] }}>
                 {char}
               </span>
             ))}
           </h1>
-          <p className="text-xl font-black italic text-gray-800 dark:text-zinc-100 mt-4 leading-tight">
+          <p className="text-xl lg:text-3xl font-black italic text-gray-800 dark:text-zinc-100 mt-4 leading-tight">
             Das gemeinsame Fahrtenbuch für euer Auto
           </p>
-          <p className="text-sm font-bold text-gray-400 dark:text-zinc-500 mt-3 leading-relaxed">
+          <p className="text-sm lg:text-base font-bold text-gray-400 dark:text-zinc-500 mt-3 leading-relaxed lg:max-w-2xl lg:mx-auto">
             Fahrten erfassen, das Auto reservieren und Tankkosten fair aufteilen – für Familien, WGs und alle, die sich ein Auto teilen.
           </p>
-          <div className="mt-6">
+          <div className="mt-6 lg:max-w-sm lg:mx-auto">
             <GoogleButton />
           </div>
           <p className="text-[10px] font-bold text-gray-300 dark:text-zinc-600 uppercase tracking-widest mt-4">
@@ -142,7 +142,7 @@ export default function Landing() {
           <h2 className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase mb-3 tracking-widest ml-4">
             Was die App kann
           </h2>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4">
             {FEATURES.map((f) => (
               <div key={f.title} className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 p-5 rounded-3xl flex items-start gap-4 shadow-sm">
                 <div className={`p-3 rounded-2xl shrink-0 ${f.iconBg} ${f.iconColor}`}>
@@ -156,6 +156,9 @@ export default function Landing() {
             ))}
           </div>
         </div>
+
+        {/* Desktop: Schritte und Installation nebeneinander */}
+        <div className="flex flex-col gap-8 lg:grid lg:grid-cols-2 lg:gap-12 lg:items-start">
 
         {/* SO FUNKTIONIERT'S */}
         <div>
@@ -221,12 +224,16 @@ export default function Landing() {
           </div>
         </div>
 
+        </div>
+
         {/* CTA */}
-        <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 border border-gray-100 dark:border-zinc-800/80 text-center">
+        <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 border border-gray-100 dark:border-zinc-800/80 text-center lg:max-w-xl lg:w-full lg:mx-auto">
           <p className="text-gray-400 dark:text-zinc-500 font-bold mb-6 italic uppercase tracking-tighter">
             Bereit für die Fahrt?
           </p>
-          <GoogleButton />
+          <div className="lg:max-w-sm lg:mx-auto">
+            <GoogleButton />
+          </div>
         </div>
 
         <p className="text-center text-[10px] font-bold text-gray-300 dark:text-zinc-600 uppercase tracking-widest">
