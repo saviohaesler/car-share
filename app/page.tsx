@@ -31,6 +31,87 @@ interface Car {
 
 const INVITE_VALIDITY_DAYS = 7;
 
+// Kurze Erste-Schritte-Hilfe für das Info-Modal (i-Button im Header)
+const HELP_ITEMS = [
+  {
+    title: "Fahrten",
+    text: "Nach jeder Fahrt den neuen KM-Stand eintragen – mehr braucht es nicht.",
+    iconBg: "bg-green-50 dark:bg-green-950/30",
+    iconColor: "text-green-600 dark:text-green-400",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+      </svg>
+    ),
+  },
+  {
+    title: "Kalender",
+    text: "Das Auto reservieren, damit alle sehen, wann es besetzt ist.",
+    iconBg: "bg-blue-50 dark:bg-blue-950/30",
+    iconColor: "text-blue-600 dark:text-blue-400",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+    ),
+  },
+  {
+    title: "Tanken",
+    text: "Beim Tanken den Betrag erfassen – die Kosten werden automatisch nach gefahrenen Kilometern aufgeteilt.",
+    iconBg: "bg-orange-50 dark:bg-orange-950/30",
+    iconColor: "text-orange-600 dark:text-orange-400",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 22h12"/><path d="M5 22V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v18"/><path d="M13 14h6a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-6"/><path d="M19 14v5a3 3 0 0 1-3 3"/><path d="M5 10h8"/>
+      </svg>
+    ),
+  },
+  {
+    title: "Statistik",
+    text: "Kilometer, Tankstopps und Kosten pro Person im Überblick.",
+    iconBg: "bg-violet-50 dark:bg-violet-950/30",
+    iconColor: "text-violet-600 dark:text-violet-400",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+    ),
+  },
+  {
+    title: "Einladen",
+    text: "Über das Teilen-Symbol beim Auto einen Einladungslink kopieren (7 Tage gültig) und weitergeben.",
+    iconBg: "bg-blue-50 dark:bg-blue-950/30",
+    iconColor: "text-blue-600 dark:text-blue-400",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+        <polyline points="16 6 12 2 8 6"></polyline>
+        <line x1="12" y1="2" x2="12" y2="15"></line>
+      </svg>
+    ),
+  },
+  {
+    title: "Als App nutzen",
+    text: "In Safari über „Teilen“ → „Zum Home-Bildschirm“ installieren und im Profil die Push-Mitteilungen aktivieren.",
+    iconBg: "bg-red-50 dark:bg-red-950/30",
+    iconColor: "text-red-500 dark:text-red-400",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+      </svg>
+    ),
+  },
+];
+
 const inviteExpiry = () =>
   Timestamp.fromMillis(Date.now() + INVITE_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
 
@@ -52,6 +133,7 @@ export default function Home() {
   const [editCarData, setEditCarData] = useState<{id: string, name: string, initialKm: string} | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [isTogglingPush, setIsTogglingPush] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   useViewportReset();
 
@@ -278,7 +360,9 @@ export default function Home() {
       <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 max-w-md w-full flex flex-col max-h-full text-center border border-gray-100 dark:border-zinc-800/80">
         
         <div className="flex justify-between items-center mb-6 px-2 shrink-0">
-          <div className="w-10"></div>
+          <button onClick={() => setIsHelpModalOpen(true)} aria-label="Hilfe" className="p-2 bg-gray-50 dark:bg-zinc-800 rounded-xl active:scale-90 transition text-gray-500 dark:text-gray-400">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          </button>
           <h1 className="text-3xl font-black tracking-tight italic uppercase">
             {"CARSHARE".split("").map((char, index) => (
               <span key={index} style={{ color: PRESET_COLORS[index % PRESET_COLORS.length] }}>
@@ -348,6 +432,30 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* HILFE MODAL */}
+      {isHelpModalOpen && (
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-2xl w-full max-w-sm text-gray-900 dark:text-white border border-gray-100 dark:border-zinc-800">
+            <h2 className="text-xl font-black mb-2 uppercase italic text-center text-black dark:text-white">Hilfe</h2>
+            <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest text-center mb-5">So funktioniert CarShare</p>
+            <div className="flex flex-col gap-3 max-h-[55vh] overflow-y-auto custom-scrollbar pr-1">
+              {HELP_ITEMS.map((item) => (
+                <div key={item.title} className="flex items-start gap-3 bg-gray-50 dark:bg-zinc-800/40 p-3 rounded-2xl border border-gray-100 dark:border-zinc-800/80">
+                  <div className={`p-2 rounded-xl shrink-0 ${item.iconBg} ${item.iconColor}`}>
+                    {item.icon}
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="font-black text-gray-800 dark:text-zinc-100 text-xs uppercase italic tracking-tight">{item.title}</span>
+                    <span className="text-xs font-bold text-gray-400 dark:text-zinc-500 mt-0.5 leading-relaxed">{item.text}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setIsHelpModalOpen(false)} className="w-full bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 transition mt-5">Schließen</button>
+          </div>
+        </div>
+      )}
 
       {/* PROFIL MODAL */}
       {isProfileModalOpen && (
