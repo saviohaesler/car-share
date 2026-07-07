@@ -4,6 +4,7 @@ import React, { use } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useViewportReset } from "../../lib/useViewportReset";
+import { usePushSync } from "../../lib/push";
 
 export default function CarLayout({
   children,
@@ -15,6 +16,9 @@ export default function CarLayout({
   const resolvedParams = use(params);
   const pathname = usePathname();
   useViewportReset();
+  // Hinterlegt das Push-Abo auch bei Autos, denen man erst nach dem
+  // Aktivieren des Schalters beigetreten ist
+  usePushSync(resolvedParams.id);
 
   const isLogActive = pathname?.endsWith("/log");
   const isCalendarActive = pathname?.endsWith("/calendar");

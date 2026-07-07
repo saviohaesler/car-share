@@ -252,6 +252,39 @@ service cloud.firestore {
         allow delete: if signedIn()
           && ((resource.data.userId == request.auth.uid && isCarMember()) || isCarOwner());
       }
+
+      // ---------- Push-Abos (Web-Push-Subscriptions je Mitglied) ----------
+      // Ein Dokument pro Mitglied (Dokument-ID = UID) mit einem subs-Array
+      // (ein Eintrag je Gerät). Mitglieder dürfen alle Abos des Autos lesen,
+      // damit der Client beim Speichern eines Eintrags die Empfänger an
+      // /api/notify übergeben kann; versendet wird nur serverseitig mit dem
+      // geheimen VAPID-Key.
+      match /pushSubscriptions/{userId} {
+        function carData() {
+          return get(/databases/$(database)/documents/cars/$(carId)).data;
+        }
+        function isCarMember() {
+          return signedIn() && request.auth.uid in carData().members;
+        }
+        function isCarOwner() {
+          return signedIn() && request.auth.uid == carData().ownerId;
+        }
+
+        allow read: if isCarMember();
+
+        // Jeder verwaltet ausschließlich sein eigenes Abo-Dokument
+        allow create, update: if isCarMember()
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['uid', 'subs', 'updatedAt'])
+          && request.resource.data.uid == userId
+          && request.resource.data.subs is list
+          && request.resource.data.subs.size() <= 10;
+
+        // Eigenes Abo entfernen (auch nach dem Austritt); der Owner darf beim
+        // Entfernen von Mitgliedern bzw. Löschen des Autos aufräumen
+        allow delete: if signedIn()
+          && (request.auth.uid == userId || isCarOwner());
+      }
     }
 
     // Alles andere ist gesperrt

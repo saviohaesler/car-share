@@ -8,6 +8,7 @@ import { Link } from "next-view-transitions";
 import { User } from "firebase/auth";
 import { useUserProfiles } from "../../../lib/useUserProfiles";
 import { useTheme } from "../../../lib/useTheme";
+import { notifyCarMembers } from "../../../lib/push";
 
 // FULLCALENDAR IMPORTS
 import FullCalendar from '@fullcalendar/react';
@@ -269,8 +270,16 @@ export default function CalendarPage({ params }: { params: Promise<{ id: string 
             title: newTitle || "Fahrt", start, end, allDay: isAllDay 
         });
       } else {
-        await addDoc(collection(db, "cars", resolvedParams.id, "reservations"), { 
-            title: newTitle || "Fahrt", userName: currentName, start, end, userId: user.uid, allDay: isAllDay 
+        await addDoc(collection(db, "cars", resolvedParams.id, "reservations"), {
+            title: newTitle || "Fahrt", userName: currentName, start, end, userId: user.uid, allDay: isAllDay
+        });
+        // Fire-and-forget: Push an die anderen Mitglieder (nur bei neuen Einträgen)
+        notifyCarMembers({
+          carId: resolvedParams.id,
+          carName,
+          type: "reservation",
+          actorName: currentName,
+          detail: `${newTitle || "Fahrt"} · ${format(start, "dd.MM.")} ${isAllDay ? "ganztägig" : `${format(start, "HH:mm")}–${format(end, "HH:mm")}`}`,
         });
       }
       setIsModalOpen(false);

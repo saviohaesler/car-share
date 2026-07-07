@@ -12,6 +12,7 @@ A shared-car logbook app: manage multiple vehicles, log trips, plan reservations
 - **Calendar** for reservations
 - **Statistics** on mileage, fuel-ups, and consumption per car
 - **Invite links** (valid for 7 days, token-based)
+- **Push notifications** (Web Push) when someone logs a trip, adds a calendar entry, or refuels — works on iPhone as an installed home-screen web app (iOS 16.4+)
 - Dark/light mode
 
 ## Tech stack
@@ -48,9 +49,18 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
+
+# Web Push (VAPID) — generate with: npx web-push generate-vapid-keys
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:you@example.com
 ```
 
-The values come from the web app config in your Firebase project settings.
+The Firebase values come from the web app config in your Firebase project settings. The VAPID key pair signs the Web Push messages sent by the `/api/notify` route handler; keep `VAPID_PRIVATE_KEY` secret.
+
+### Push notifications
+
+Enable the toggle under **Profile → Benachrichtigungen**. On iPhone the site must first be installed via Safari **Share → Add to Home Screen** and opened from there (iOS 16.4+). Notifications are sent to the other car members when someone logs a trip, creates a calendar entry, or records a fuel stop.
 
 ### 4. Deploy Firestore security rules
 

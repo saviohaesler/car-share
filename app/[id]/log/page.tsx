@@ -9,6 +9,7 @@ import { useUserProfiles } from "../../../lib/useUserProfiles";
 import { useTheme } from "../../../lib/useTheme";
 import { ensureUserProfile } from "../../../lib/userProfile";
 import { DriveLog, FuelDetail, formatKm, buildUidResolver } from "../../../lib/logs";
+import { notifyCarMembers } from "../../../lib/push";
 
 // FNV-1a-Hash mit fester Länge, damit die deterministische Tankstopp-ID
 // nicht mit jeder Abrechnung länger wird (sie referenziert ihren Vorgänger)
@@ -185,6 +186,14 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         userId: user.uid,
         type: "drive"
       });
+      // Fire-and-forget: Push an die anderen Mitglieder
+      notifyCarMembers({
+        carId: resolvedParams.id,
+        carName,
+        type: "drive",
+        actorName: userProfile.displayName,
+        detail: `${formatKm(sKm)} → ${formatKm(eKm)} km`,
+      });
       setEndKm(eKm.toString());
       setStartKm(eKm.toString());
     } catch (error) {
@@ -283,6 +292,14 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
         timestamp: serverTimestamp(),
         userId: user.uid,
         type: "fuel"
+      });
+      // Fire-and-forget: Push an die anderen Mitglieder
+      notifyCarMembers({
+        carId: resolvedParams.id,
+        carName,
+        type: "fuel",
+        actorName: userProfile.displayName,
+        detail: `CHF ${price.toFixed(2)}`,
       });
       setFuelSummary(summary);
     } catch (error) {

@@ -11,6 +11,14 @@ import { useTheme } from "../lib/useTheme";
 import { useViewportReset } from "../lib/useViewportReset";
 import { ensureUserProfile } from "../lib/userProfile";
 import { PRESET_COLORS } from "../lib/constants";
+import {
+  disablePush,
+  enablePush,
+  getCurrentSubscription,
+  isIosWithoutPwa,
+  isPushEnabledLocally,
+  isPushSupported,
+} from "../lib/push";
 
 interface Car {
   id: string;
@@ -38,8 +46,52 @@ export default function Home() {
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
   const [isEditCarModalOpen, setIsEditCarModalOpen] = useState(false);
   const [editCarData, setEditCarData] = useState<{id: string, name: string, initialKm: string} | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [isTogglingPush, setIsTogglingPush] = useState(false);
   const { theme, toggleTheme } = useTheme();
   useViewportReset();
+
+  // Aktuellen Push-Status ermitteln, sobald das Profil-Modal geöffnet wird
+  useEffect(() => {
+    if (!isProfileModalOpen) return;
+    let cancelled = false;
+    (async () => {
+      if (!isPushSupported()) {
+        if (!cancelled) setPushEnabled(false);
+        return;
+      }
+      const sub = await getCurrentSubscription();
+      if (!cancelled) setPushEnabled(!!sub && isPushEnabledLocally());
+    })();
+    return () => { cancelled = true; };
+  }, [isProfileModalOpen]);
+
+  const toggleNotifications = async () => {
+    if (!user || isTogglingPush) return;
+    if (!isPushSupported()) {
+      alert(
+        isIosWithoutPwa()
+          ? "Auf dem iPhone zuerst installieren: In Safari über „Teilen“ → „Zum Home-Bildschirm“, dann die App vom Home-Bildschirm öffnen."
+          : "Dieser Browser unterstützt keine Push-Benachrichtigungen."
+      );
+      return;
+    }
+    setIsTogglingPush(true);
+    try {
+      const carIds = cars.map((c) => c.id);
+      if (pushEnabled) {
+        await disablePush(carIds, user.uid);
+        setPushEnabled(false);
+      } else {
+        await enablePush(carIds, user.uid);
+        setPushEnabled(true);
+      }
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Benachrichtigungen konnten nicht geändert werden.");
+    }
+    setIsTogglingPush(false);
+  };
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -141,7 +193,7 @@ export default function Home() {
       try {
         // Firestore doesn't automatically delete subcollections - remove logs and
         // reservations first, otherwise orphaned data remains.
-        for (const sub of ["logs", "reservations"]) {
+        for (const sub of ["logs", "reservations", "pushSubscriptions"]) {
           const snap = await getDocs(collection(db, "cars", editCarData.id, sub));
           const docs = snap.docs;
           for (let i = 0; i < docs.length; i += 100) {
@@ -193,6 +245,8 @@ export default function Home() {
     if (window.confirm("Mitglied wirklich entfernen?")) {
       try {
         await updateDoc(doc(db, "cars", carId), { members: arrayRemove(memberId) });
+        // Push-Abo des entfernten Mitglieds mit aufräumen (best effort)
+        deleteDoc(doc(db, "cars", carId, "pushSubscriptions", memberId)).catch(() => {});
         if (memberId === user?.uid) setIsMemberModalOpen(false);
       } catch (error) {
         console.error(error);
@@ -316,6 +370,28 @@ export default function Home() {
                     )}
                   </button>
                 </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Benachrichtigungen</label>
+                <div className="flex justify-between items-center bg-gray-50 dark:bg-zinc-800/40 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/80 mt-2">
+                  <span className="text-sm font-bold text-gray-750 dark:text-zinc-300">
+                    Push-Mitteilungen
+                  </span>
+                  <button
+                    type="button"
+                    onClick={toggleNotifications}
+                    disabled={isTogglingPush}
+                    aria-label="Push-Benachrichtigungen umschalten"
+                    className={`relative w-12 h-7 rounded-full transition-colors shrink-0 disabled:opacity-50 ${pushEnabled ? "bg-blue-600" : "bg-gray-200 dark:bg-zinc-700"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${pushEnabled ? "translate-x-5" : ""}`} />
+                  </button>
+                </div>
+                {isIosWithoutPwa() && (
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 mt-2 ml-1 uppercase leading-relaxed">
+                    Auf dem iPhone: In Safari über „Teilen“ → „Zum Home-Bildschirm“ installieren und die App von dort öffnen.
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <button onClick={saveProfile} disabled={isSavingProfile} className="bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition uppercase italic disabled:opacity-50">{isSavingProfile ? "Speichert..." : "Speichern"}</button>
