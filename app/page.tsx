@@ -11,6 +11,7 @@ import { useTheme } from "../lib/useTheme";
 import { useViewportReset } from "../lib/useViewportReset";
 import { ensureUserProfile } from "../lib/userProfile";
 import { PRESET_COLORS } from "../lib/constants";
+import Landing from "./Landing";
 import {
   disablePush,
   enablePush,
@@ -35,6 +36,9 @@ const inviteExpiry = () =>
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  // Verhindert, dass eingeloggte Nutzer beim Laden kurz die Landingpage sehen,
+  // solange Firebase den Auth-Status noch wiederherstellt
+  const [authReady, setAuthReady] = useState(false);
   const [carName, setCarName] = useState("");
   const [newCarInitialKm, setNewCarInitialKm] = useState("");
   const [cars, setCars] = useState<Car[]>([]);
@@ -96,6 +100,7 @@ export default function Home() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
+      setAuthReady(true);
       if (!currentUser) {
         setCars([]);
         return;
@@ -257,6 +262,16 @@ export default function Home() {
 
   // selectedCar is a snapshot - always show the live state from "cars" in the modal
   const memberModalCar = selectedCar ? (cars.find((c) => c.id === selectedCar.id) ?? selectedCar) : null;
+
+  // Solange der Auth-Status lädt: nur der Hintergrund (kein Flackern)
+  if (!authReady) {
+    return <main className="w-full h-full bg-gray-50 dark:bg-zinc-950" />;
+  }
+
+  // Nicht angemeldete Besucher sehen die Landingpage
+  if (!user) {
+    return <Landing />;
+  }
 
   return (
     <main className="w-full h-full flex flex-col items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] bg-gray-50 dark:bg-zinc-950 overflow-hidden relative text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
