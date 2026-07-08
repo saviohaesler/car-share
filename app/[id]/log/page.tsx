@@ -163,6 +163,10 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
   // Auto-Einträge
   const saveKmCorrection = async () => {
     if (!editingLog || !user || editingLog.userId !== user.uid || isSaving) return;
+    if (logs.length > 0 && logs[0].id !== editingLog.id) {
+        alert("Nur der aktuellste Eintrag kann bearbeitet werden.");
+        return;
+    }
     const minKm = editingLog.startKm ?? 0;
     if (correctedKm < minKm) return;
     setIsSaving(true);
@@ -334,6 +338,10 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   const handleDeleteLog = async () => {
     if (!editingLog || !user || editingLog.userId !== user.uid) return;
+    if (logs.length > 0 && logs[0].id !== editingLog.id) {
+        alert("Nur der aktuellste Eintrag kann gelöscht werden.");
+        return;
+    }
     if (window.confirm("Löschen?")) {
       try {
         await deleteDoc(doc(db, "cars", resolvedParams.id, "logs", editingLog.id));
@@ -546,8 +554,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                     )}
                                 </div>
 
-                                {/* KM-Korrektur: nur eigene, automatisch erfasste Fahrten */}
-                                {editingLog.source === 'auto' && editingLog.userId === user.uid && (
+                                {/* KM-Korrektur: nur eigene, automatisch erfasste Fahrten, wenn es die letzte ist */}
+                                {editingLog.source === 'auto' && editingLog.userId === user.uid && logs[0]?.id === editingLog.id && (
                                     <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-2xl p-4 shadow-sm">
                                         <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-3 ml-1">Ende-KM korrigieren</p>
                                         <div className="flex items-center gap-2">
@@ -570,7 +578,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
                         <div className="flex flex-col gap-2 mt-2">
                             <button onClick={() => setIsModalOpen(false)} className="w-full bg-gray-250 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 hover:bg-gray-300 dark:hover:bg-zinc-700 transition">Schließen</button>
-                            {editingLog.userId === user.uid && (
+                            {editingLog.userId === user.uid && logs[0]?.id === editingLog.id && (
                                 <button onClick={handleDeleteLog} className="w-full bg-red-50 dark:bg-red-950/20 text-red-500 dark:text-red-400 font-bold py-3 rounded-xl uppercase text-[10px] mt-2 border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-950/40 active:scale-95 transition">Löschen</button>
                             )}
                         </div>
