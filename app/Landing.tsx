@@ -98,6 +98,10 @@ const STEPS = [
     text: "Ein Auto anlegen und die anderen per Einladungslink dazuholen – oder selbst über einen Link beitreten.",
   },
   {
+    title: "Auto reservieren",
+    text: "Einfach im Kalender eintragen, wann man das Auto braucht – so gibt es keine Überschneidungen.",
+  },
+  {
     title: "Fahrten eintragen",
     text: "Nach der Fahrt kurz den neuen KM-Stand erfassen. Mehr braucht es nicht.",
   },
