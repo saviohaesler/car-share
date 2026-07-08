@@ -146,6 +146,7 @@ export default function Home() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [isTogglingPush, setIsTogglingPush] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isAutoTrackingInfoOpen, setIsAutoTrackingInfoOpen] = useState(false);
   // Auto-Tracking: carId -> Token-ID (Dokument-ID in automationTokens)
   const [autoTokens, setAutoTokens] = useState<Record<string, string>>({});
   const [autoTokenBusy, setAutoTokenBusy] = useState<string | null>(null);
@@ -631,9 +632,14 @@ export default function Home() {
                 )}
               </div>
               <div>
-                <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Auto-Tracking</label>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 mt-1 ml-1 leading-relaxed">
-                  Persönlicher Link pro Auto für die automatische Fahrterfassung (SensorLogger + <a href="https://www.icloud.com/shortcuts/1e0fcec1a8d5421e8760116558fffddc" target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 underline">Kurzbefehle</a>).
+                <div className="flex items-center gap-2 mb-1">
+                  <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Auto-Tracking</label>
+                  <button onClick={() => setIsAutoTrackingInfoOpen(true)} className="p-1 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition bg-blue-50/50 dark:bg-blue-900/20" title="Einrichtungs-Anleitung öffnen">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                  </button>
+                </div>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 ml-1 leading-relaxed">
+                  Persönlicher Link pro Auto für die automatische Fahrterfassung.
                 </p>
                 <div className="flex flex-col gap-2 mt-2">
                   {cars.length === 0 && (
@@ -732,6 +738,48 @@ export default function Home() {
               ))}
             </div>
             <button onClick={() => setIsMemberModalOpen(false)} className="w-full bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 transition">Schließen</button>
+          </div>
+        </div>
+      )}
+
+      {/* AUTO TRACKING INFO MODAL */}
+      {isAutoTrackingInfoOpen && (
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-2xl w-full max-w-md text-gray-900 dark:text-white border border-gray-100 dark:border-zinc-800 flex flex-col max-h-[85vh] overflow-hidden">
+            <h2 className="text-xl font-black mb-2 uppercase italic text-center text-black dark:text-white">Auto-Tracking Setup</h2>
+            <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest text-center mb-5 shrink-0">Schritt für Schritt (iPhone)</p>
+            
+            <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-1 pb-2">
+              <div className="bg-gray-50 dark:bg-zinc-800/40 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/80">
+                <p className="font-black text-sm uppercase italic mb-1">1. Sensor Logger</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">Die App zeichnet im Hintergrund die GPS-Punkte auf.</p>
+                <a href="https://apps.apple.com/ch/app/sensor-logger/id1531582925" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition active:scale-95">App herunterladen</a>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-zinc-800/40 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/80">
+                <p className="font-black text-sm uppercase italic mb-1">2. Tracking Link einrichten</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed">In der <b>Sensor Logger App</b> Standort-Erlaubnis auf "Immer" stellen. Unter <b>Settings</b> &rarr; <b>Data Streaming</b> "Enable HTTP Push" aktivieren und dort deinen <b>Tracking-Link</b> in das Feld "Push URL" einfügen.</p>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-zinc-800/40 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/80">
+                <p className="font-black text-sm uppercase italic mb-1">3. Kurzbefehle laden</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3 leading-relaxed">Diese zwei Kurzbefehle steuern die App automatisch (beim Import des Stop-Befehls deinen Tracking-Link einfügen):</p>
+                <div className="flex gap-2">
+                  <a href="https://www.icloud.com/shortcuts/1113098737aa4ce98a247b50d8c37406" target="_blank" rel="noopener noreferrer" className="flex-1 text-center bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-2 rounded-lg text-[10px] font-bold uppercase transition active:scale-95 border border-blue-100 dark:border-blue-900/40">Start Kurzbefehl</a>
+                  <a href="https://www.icloud.com/shortcuts/8e8cb1a0f97a4eb6b6c76b5aa8109ccc" target="_blank" rel="noopener noreferrer" className="flex-1 text-center bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-2 rounded-lg text-[10px] font-bold uppercase transition active:scale-95 border border-blue-100 dark:border-blue-900/40">Stop Kurzbefehl</a>
+                </div>
+                <p className="text-[10px] text-orange-500 dark:text-orange-400 mt-3 leading-relaxed"><b>Wichtig:</b> Führe beide Kurzbefehle danach einmal manuell in der Kurzbefehle-App aus und wähle "Immer erlauben", damit sie Rechte bekommen.</p>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-zinc-800/40 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/80">
+                <p className="font-black text-sm uppercase italic mb-2">4. Bluetooth Automation</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed mb-3">In der <b>Kurzbefehle App</b> &rarr; <b>Automation</b>:</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed mb-2"><b>(+) Neue Automation:</b> Bluetooth &rarr; Auto auswählen &rarr; <b>"Verbunden wird"</b> &rarr; <b>"Sofort ausführen"</b>. Dann den <b>Start Kurzbefehl</b> auswählen.</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed"><b>(+) Neue Automation:</b> Bluetooth &rarr; Auto auswählen &rarr; <b>"Getrennt wird"</b> &rarr; <b>"Sofort ausführen"</b>. Dann den <b>Stop Kurzbefehl</b> auswählen.</p>
+              </div>
+            </div>
+
+            <button onClick={() => setIsAutoTrackingInfoOpen(false)} className="w-full bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 transition mt-4 shrink-0 border border-gray-200 dark:border-zinc-700">Schließen</button>
           </div>
         </div>
       )}
