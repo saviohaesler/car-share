@@ -502,7 +502,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                     <h2 className="text-xl font-black mb-6 text-center italic uppercase tracking-tighter text-black dark:text-white">
                         {editingLog.type === 'fuel' ? 'Tankbeleg' : 'Details'}
                     </h2>
-                    <div className="flex flex-col gap-4 overflow-y-auto max-h-[70vh] px-1 text-left">
+                    <div className="flex flex-col gap-4 overflow-y-auto max-h-[85vh] px-1 text-left">
                         <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex flex-col gap-2 border border-gray-100 dark:border-zinc-800/80">
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>

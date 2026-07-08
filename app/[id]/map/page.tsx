@@ -45,7 +45,11 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   const [hiddenUsers, setHiddenUsers] = useState<Set<string>>(new Set());
   const { theme } = useTheme();
   const searchParams = useSearchParams();
-  const focusedRouteId = searchParams.get("routeId");
+  const [activeRouteId, setActiveRouteId] = useState<string | null>(searchParams.get("routeId"));
+
+  useEffect(() => {
+    setActiveRouteId(searchParams.get("routeId"));
+  }, [searchParams]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Leaflet.Map | null>(null);
@@ -158,8 +162,8 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
 
   const visibleRoutes = useMemo(
     () => {
-      if (focusedRouteId) {
-        return routes.filter((r) => r.id === focusedRouteId);
+      if (activeRouteId) {
+        return routes.filter((r) => r.id === activeRouteId);
       }
       return routes.filter(
         (r) =>
@@ -167,7 +171,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
           (!rangeStart || (r.date !== null && r.date >= rangeStart))
       );
     },
-    [routes, hiddenUsers, rangeStart, focusedRouteId]
+    [routes, hiddenUsers, rangeStart, activeRouteId]
   );
 
   // Personen, die in den geladenen Routen vorkommen (für die Filter-Chips)
@@ -242,6 +246,16 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
     });
   };
 
+  const handleTimeRangeChange = (tr: TimeRange) => {
+    setTimeRange(tr);
+    setActiveRouteId(null);
+  };
+
+  const handleToggleUser = (uid: string) => {
+    toggleUser(uid);
+    setActiveRouteId(null);
+  };
+
   if (!user) return null;
 
   return (
@@ -262,33 +276,31 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
         {/* MAP CONTAINER */}
         <div className="relative isolate flex-1 w-full bg-white dark:bg-zinc-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-zinc-800/80 overflow-hidden min-h-[300px]">
           <div className="absolute top-4 left-4 right-4 z-[500] flex flex-col gap-2 pointer-events-none">
-            {!focusedRouteId && (
-              <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-gray-100 dark:border-zinc-800/80 pointer-events-auto flex justify-between gap-1 max-w-full overflow-x-auto custom-scrollbar">
-                {(["1m", "3m", "6m", "12m", "all"] as TimeRange[]).map((tr) => (
-                  <button
-                    key={tr}
-                    onClick={() => setTimeRange(tr)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest transition shrink-0 ${
-                      timeRange === tr
-                        ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
-                        : "text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                    }`}
-                  >
-                    {tr === "all" ? "Alle" : tr.replace("m", " Mt.")}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-gray-100 dark:border-zinc-800/80 pointer-events-auto flex justify-between gap-1 max-w-full overflow-x-auto custom-scrollbar">
+              {(["1m", "3m", "6m", "12m", "all"] as TimeRange[]).map((tr) => (
+                <button
+                  key={tr}
+                  onClick={() => handleTimeRangeChange(tr)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest transition shrink-0 ${
+                    timeRange === tr && !activeRouteId
+                      ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
+                      : "text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  }`}
+                >
+                  {tr === "all" ? "Alle" : tr.replace("m", " Mt.")}
+                </button>
+              ))}
+            </div>
 
-            {!focusedRouteId && routeUsers.length > 0 && (
+            {routeUsers.length > 0 && (
               <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-gray-100 dark:border-zinc-800/80 pointer-events-auto flex gap-2 max-w-full overflow-x-auto custom-scrollbar">
                 {routeUsers.map((uid) => {
-                  const active = !hiddenUsers.has(uid);
+                  const active = !hiddenUsers.has(uid) && !activeRouteId;
                   const color = userProfiles[uid]?.color || "#3b82f6";
                   return (
                     <button
                       key={uid}
-                      onClick={() => toggleUser(uid)}
+                      onClick={() => handleToggleUser(uid)}
                       className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-xs font-black uppercase tracking-tight shrink-0 transition active:scale-95 ${
                         active
                           ? "bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800/80 text-gray-800 dark:text-zinc-100 shadow-sm"
