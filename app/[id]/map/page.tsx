@@ -120,10 +120,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
     if (!L || !containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, { 
       zoomControl: false, 
-      attributionControl: false,
-      dragging: false,
-      touchZoom: false,
-      scrollWheelZoom: false
+      attributionControl: false
     });
     map.setView([46.8, 8.2], 8); // Schweiz als Ausgangsansicht
     mapRef.current = map;
@@ -241,8 +238,8 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   if (!user) return null;
 
   return (
-    <main className="w-full h-full flex flex-col items-center px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-y-auto relative transition-colors duration-200">
-      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md lg:max-w-4xl flex flex-col pb-4">
+    <main className="w-full h-[100dvh] flex flex-col items-center px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative transition-colors duration-200">
+      <div style={{ viewTransitionName: "page-content" }} className="w-full max-w-md lg:max-w-4xl flex flex-col h-full">
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
@@ -303,7 +300,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
         )}
 
         {/* KARTE */}
-        <div className="relative isolate h-[60vh] bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800/80 overflow-hidden shrink-0">
+        <div className="relative isolate flex-1 w-full bg-white dark:bg-zinc-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-zinc-800/80 overflow-hidden min-h-[300px]">
           <div ref={containerRef} className="absolute inset-0" />
           {(loading || !L) && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50/80 dark:bg-zinc-950/80 z-[500]">
