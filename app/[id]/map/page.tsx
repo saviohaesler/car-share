@@ -118,7 +118,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   // Karte initialisieren
   useEffect(() => {
     if (!L || !containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, { zoomControl: true });
+    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false });
     map.setView([46.8, 8.2], 8); // Schweiz als Ausgangsansicht
     mapRef.current = map;
     setTimeout(() => map.invalidateSize(), 100);
