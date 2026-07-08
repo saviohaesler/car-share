@@ -710,6 +710,12 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
               )}
 
               <div className="flex flex-col gap-2 mt-2">
+                {selectedLog.source === 'auto' && (
+                    <Link href={`/${resolvedParams.id}/map?routeId=${selectedLog.id}`} className="w-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition text-center border border-blue-100 dark:border-blue-900/30 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                        Auf Karte anzeigen
+                    </Link>
+                )}
                 <button onClick={() => setIsDetailModalOpen(false)} className="w-full bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 font-bold py-4 rounded-2xl uppercase text-xs active:scale-95 hover:bg-gray-300 dark:hover:bg-zinc-700 transition">Schließen</button>
               </div>
             </div>

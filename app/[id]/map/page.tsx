@@ -5,6 +5,7 @@ import { collection, doc, getDoc, getDocs, orderBy, query, Timestamp } from "fir
 import { db, auth } from "../../../lib/firebase";
 import { Link } from "next-view-transitions";
 import { User } from "firebase/auth";
+import { useSearchParams } from "next/navigation";
 import { useUserProfiles } from "../../../lib/useUserProfiles";
 import { useTheme } from "../../../lib/useTheme";
 import { decodePolyline } from "../../../lib/polyline";
@@ -43,6 +44,8 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   const [timeRange, setTimeRange] = useState<TimeRange>("3m");
   const [hiddenUsers, setHiddenUsers] = useState<Set<string>>(new Set());
   const { theme } = useTheme();
+  const searchParams = useSearchParams();
+  const focusedRouteId = searchParams.get("routeId");
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Leaflet.Map | null>(null);
@@ -154,13 +157,17 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   }, [timeRange]);
 
   const visibleRoutes = useMemo(
-    () =>
-      routes.filter(
+    () => {
+      if (focusedRouteId) {
+        return routes.filter((r) => r.id === focusedRouteId);
+      }
+      return routes.filter(
         (r) =>
           !hiddenUsers.has(r.userId) &&
           (!rangeStart || (r.date !== null && r.date >= rangeStart))
-      ),
-    [routes, hiddenUsers, rangeStart]
+      );
+    },
+    [routes, hiddenUsers, rangeStart, focusedRouteId]
   );
 
   // Personen, die in den geladenen Routen vorkommen (für die Filter-Chips)
@@ -252,55 +259,50 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
           <div className="w-16"></div>
         </div>
 
-        {/* ZEITRAUM */}
-        <div className="flex bg-white dark:bg-zinc-900 p-1 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 mb-4 shrink-0">
-          {([
-            { id: "1m", label: "1 Mon." },
-            { id: "3m", label: "3 Mon." },
-            { id: "6m", label: "6 Mon." },
-            { id: "12m", label: "12 Mon." },
-            { id: "all", label: "Gesamt" },
-          ] as const).map((r) => (
-            <button
-              key={r.id}
-              onClick={() => setTimeRange(r.id)}
-              className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-tighter rounded-xl transition active:scale-95 ${
-                timeRange === r.id
-                  ? "bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-md"
-                  : "text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300"
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-
-        {/* PERSONEN-FILTER */}
-        {routeUsers.length > 0 && (
-          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1 shrink-0">
-            {routeUsers.map((uid) => {
-              const active = !hiddenUsers.has(uid);
-              const color = userProfiles[uid]?.color || "#3b82f6";
-              return (
-                <button
-                  key={uid}
-                  onClick={() => toggleUser(uid)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-xs font-black uppercase tracking-tight shrink-0 transition active:scale-95 ${
-                    active
-                      ? "bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800/80 text-gray-800 dark:text-zinc-100 shadow-sm"
-                      : "bg-gray-100 dark:bg-zinc-900/40 border-transparent text-gray-400 dark:text-zinc-600 opacity-60"
-                  }`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color, opacity: active ? 1 : 0.4 }}></span>
-                  {userProfiles[uid]?.displayName || "Unbekannt"}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* KARTE */}
+        {/* MAP CONTAINER */}
         <div className="relative isolate flex-1 w-full bg-white dark:bg-zinc-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-zinc-800/80 overflow-hidden min-h-[300px]">
+          <div className="absolute top-4 left-4 right-4 z-[500] flex flex-col gap-2 pointer-events-none">
+            {!focusedRouteId && (
+              <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-gray-100 dark:border-zinc-800/80 pointer-events-auto flex justify-between gap-1 max-w-full overflow-x-auto custom-scrollbar">
+                {(["1m", "3m", "6m", "12m", "all"] as TimeRange[]).map((tr) => (
+                  <button
+                    key={tr}
+                    onClick={() => setTimeRange(tr)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest transition shrink-0 ${
+                      timeRange === tr
+                        ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
+                        : "text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    {tr === "all" ? "Alle" : tr.replace("m", " Mt.")}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!focusedRouteId && routeUsers.length > 0 && (
+              <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-gray-100 dark:border-zinc-800/80 pointer-events-auto flex gap-2 max-w-full overflow-x-auto custom-scrollbar">
+                {routeUsers.map((uid) => {
+                  const active = !hiddenUsers.has(uid);
+                  const color = userProfiles[uid]?.color || "#3b82f6";
+                  return (
+                    <button
+                      key={uid}
+                      onClick={() => toggleUser(uid)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-xs font-black uppercase tracking-tight shrink-0 transition active:scale-95 ${
+                        active
+                          ? "bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800/80 text-gray-800 dark:text-zinc-100 shadow-sm"
+                          : "bg-gray-100 dark:bg-zinc-900/40 border-transparent text-gray-400 dark:text-zinc-600 opacity-60"
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color, opacity: active ? 1 : 0.4 }}></span>
+                      {userProfiles[uid]?.displayName || "Unbekannt"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <div ref={containerRef} className="absolute inset-0" />
           {(loading || !L) && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50/80 dark:bg-zinc-950/80 z-[500]">
