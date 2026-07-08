@@ -432,7 +432,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                   <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-1">{userProfiles[log.userId]?.displayName || log.userName}</span>
                               </div>
                               <div className="text-right flex flex-col items-end shrink-0">
-                                  <span className="text-[11px] font-black text-gray-400 dark:text-zinc-500 uppercase">{log.timestamp?.toDate().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr</span>
+                                  <span className="text-[11px] font-black text-gray-400 dark:text-zinc-500">{log.timestamp?.toDate().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr</span>
                                   {log.type === 'fuel' && <span className="bg-orange-500 text-white text-[10px] px-2 py-1 rounded-lg mt-1 font-black shadow-md shadow-orange-500/20">{log.fuelAmount}.-</span>}
                                   {log.source === 'auto' && <span className="text-[9px] bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md mt-1 font-black uppercase border border-blue-200 dark:border-blue-900/40">Auto</span>}
                               </div>

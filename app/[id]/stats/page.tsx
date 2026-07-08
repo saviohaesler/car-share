@@ -621,8 +621,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                       <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500 uppercase mt-0.5">{userProfiles[log.userId]?.displayName || log.userName}</span>
                     </div>
                     <div className="text-right flex flex-col items-end shrink-0">
-                      <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase">
-                        {logDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                      <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500">
+                        {logDate.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr
                       </span>
                       {log.type === 'fuel' && (
                         <span className="bg-orange-500 text-white text-[9px] px-2 py-0.5 rounded-md mt-1 font-black">
