@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, getDocs, deleteDoc, setDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, getDocs, deleteDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase";
 import { User } from "firebase/auth";
 import { Link } from "next-view-transitions";
@@ -43,6 +43,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<DriveLog | null>(null);
+  const [correctedKm, setCorrectedKm] = useState(0);
 
   const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
   const [fuelPrice, setFuelPrice] = useState("");
@@ -153,7 +154,28 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
   const handleEditClick = (log: DriveLog) => {
     setEditingLog(log);
+    setCorrectedKm(log.km);
     setIsModalOpen(true);
+  };
+
+  // KM-Korrektur für automatisch erfasste Fahrten (GPS-Distanz kann vom
+  // Tacho abweichen); die Rules erlauben nur das km-Feld der eigenen
+  // Auto-Einträge
+  const saveKmCorrection = async () => {
+    if (!editingLog || !user || editingLog.userId !== user.uid || isSaving) return;
+    const minKm = editingLog.startKm ?? 0;
+    if (correctedKm < minKm) return;
+    setIsSaving(true);
+    try {
+      await updateDoc(doc(db, "cars", resolvedParams.id, "logs", editingLog.id), {
+        km: correctedKm,
+      });
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Korrektur konnte nicht gespeichert werden. Bitte erneut versuchen.");
+    }
+    setIsSaving(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -315,6 +337,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
     if (window.confirm("Löschen?")) {
       try {
         await deleteDoc(doc(db, "cars", resolvedParams.id, "logs", editingLog.id));
+        // Zugehörige aufgezeichnete Strecke (Kartenansicht) mit aufräumen
+        deleteDoc(doc(db, "cars", resolvedParams.id, "routes", editingLog.id)).catch(() => {});
         setIsModalOpen(false);
       } catch (error) {
         console.error(error);
@@ -410,6 +434,7 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                               <div className="text-right flex flex-col items-end shrink-0">
                                   <span className="text-[11px] font-black text-gray-400 dark:text-zinc-500 uppercase">{log.timestamp?.toDate().toLocaleDateString('de-DE')}</span>
                                   {log.type === 'fuel' && <span className="bg-orange-500 text-white text-[10px] px-2 py-1 rounded-lg mt-1 font-black shadow-md shadow-orange-500/20">{log.fuelAmount}.-</span>}
+                                  {log.source === 'auto' && <span className="text-[9px] bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md mt-1 font-black uppercase border border-blue-200 dark:border-blue-900/40">Auto</span>}
                               </div>
                           </div>
                       );
@@ -512,9 +537,34 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                 )}
                             </div>
                         ) : (
-                            <div className="bg-gray-50 dark:bg-zinc-800/40 p-5 rounded-2xl border border-gray-100 dark:border-zinc-800/80 text-center">
-                                <p className="text-2xl font-black italic text-zinc-900 dark:text-white">{formatKm(editingLog.startKm)} → {formatKm(editingLog.km)} km</p>
-                                <p className="text-xs font-bold text-green-500 dark:text-green-400 uppercase mt-1">{formatKm((editingLog.km - (editingLog.startKm ?? editingLog.km)))} km gefahren</p>
+                            <div className="flex flex-col gap-4">
+                                <div className="bg-gray-50 dark:bg-zinc-800/40 p-5 rounded-2xl border border-gray-100 dark:border-zinc-800/80 text-center">
+                                    <p className="text-2xl font-black italic text-zinc-900 dark:text-white">{formatKm(editingLog.startKm)} → {formatKm(editingLog.km)} km</p>
+                                    <p className="text-xs font-bold text-green-500 dark:text-green-400 uppercase mt-1">{formatKm((editingLog.km - (editingLog.startKm ?? editingLog.km)))} km gefahren</p>
+                                    {editingLog.source === 'auto' && (
+                                        <p className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest mt-2">Automatisch erfasst (GPS)</p>
+                                    )}
+                                </div>
+
+                                {/* KM-Korrektur: nur eigene, automatisch erfasste Fahrten */}
+                                {editingLog.source === 'auto' && editingLog.userId === user.uid && (
+                                    <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-2xl p-4 shadow-sm">
+                                        <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-3 ml-1">Ende-KM korrigieren</p>
+                                        <div className="flex items-center gap-2">
+                                            <button type="button" onClick={() => setCorrectedKm(Math.max(editingLog.startKm ?? 0, correctedKm - 1))} disabled={correctedKm <= (editingLog.startKm ?? 0)} className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 active:scale-95 text-gray-800 dark:text-zinc-200 h-10 w-10 rounded-xl flex items-center justify-center font-bold disabled:opacity-30 disabled:active:scale-100 transition-opacity">-</button>
+                                            <div className="bg-gray-50 dark:bg-zinc-900/50 text-gray-900 dark:text-white h-10 flex-1 rounded-xl font-black text-center border border-gray-100 dark:border-zinc-800 flex flex-col items-center justify-center leading-none">
+                                                <span className="text-sm">{formatKm(correctedKm)} km</span>
+                                            </div>
+                                            <button type="button" onClick={() => setCorrectedKm(correctedKm + 1)} className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 active:scale-95 text-gray-800 dark:text-zinc-200 h-10 w-10 rounded-xl flex items-center justify-center font-bold transition-opacity">+</button>
+                                        </div>
+                                        <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase text-center mt-2">= {formatKm(correctedKm - (editingLog.startKm ?? 0))} km gefahren</p>
+                                        {correctedKm !== editingLog.km && (
+                                            <button onClick={saveKmCorrection} disabled={isSaving} className="w-full bg-blue-600 text-white font-black py-3 rounded-xl uppercase italic text-xs mt-3 active:scale-95 transition shadow-lg disabled:opacity-50">
+                                                {isSaving ? "Speichert..." : "Korrektur speichern"}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 

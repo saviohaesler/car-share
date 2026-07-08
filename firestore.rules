@@ -199,8 +199,17 @@ service cloud.firestore {
                  && request.resource.data.fuelDetails.size() <= 100)
              );
 
-        // Die App bearbeitet Logs nie - nur anlegen und löschen
-        allow update: if false;
+        // Manuelle Einträge bleiben unveränderlich. Einzige Ausnahme:
+        // Bei automatisch erfassten Fahrten (source == 'auto', via /api/track)
+        // darf der Fahrer den End-KM-Stand korrigieren, da die GPS-Distanz
+        // vom Tacho abweichen kann.
+        allow update: if isCarMember()
+          && resource.data.userId == request.auth.uid
+          && resource.data.type == 'drive'
+          && resource.data.source == 'auto'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['km'])
+          && request.resource.data.km is number
+          && request.resource.data.km >= resource.data.startKm;
 
         // Eigene Einträge löschen (nur solange man Mitglied ist - entfernte
         // Mitglieder können die Abrechnungshistorie nicht mehr manipulieren);
@@ -253,6 +262,32 @@ service cloud.firestore {
           && ((resource.data.userId == request.auth.uid && isCarMember()) || isCarOwner());
       }
 
+      // ---------- Aufgezeichnete Strecken (Auto-Tracking) ----------
+      // Dokument-ID = ID des zugehörigen Log-Eintrags. Wird ausschließlich
+      // serverseitig von /api/track (Admin SDK) erstellt; Clients lesen sie
+      // für die Kartenansicht und räumen sie beim Löschen von Einträgen auf.
+      match /routes/{routeId} {
+        function carData() {
+          return get(/databases/$(database)/documents/cars/$(carId)).data;
+        }
+        function isCarMember() {
+          return signedIn() && request.auth.uid in carData().members;
+        }
+        function isCarOwner() {
+          return signedIn() && request.auth.uid == carData().ownerId;
+        }
+
+        allow read: if isCarMember();
+
+        // Nur der Server (Admin SDK) legt Strecken an
+        allow create, update: if false;
+
+        // Eigene Strecke löschen (zusammen mit dem Log-Eintrag); der Owner
+        // darf beim Löschen des Autos aufräumen
+        allow delete: if signedIn()
+          && ((resource.data.userId == request.auth.uid && isCarMember()) || isCarOwner());
+      }
+
       // ---------- Push-Abos (Web-Push-Subscriptions je Mitglied) ----------
       // Ein Dokument pro Mitglied (Dokument-ID = UID) mit einem subs-Array
       // (ein Eintrag je Gerät). Mitglieder dürfen alle Abos des Autos lesen,
@@ -286,6 +321,27 @@ service cloud.firestore {
           && (request.auth.uid == userId || isCarOwner());
       }
     }
+
+    // ---------- Automations-Tokens (Auto-Tracking) ----------
+    // Dokument-ID = geheimer Token für die SensorLogger-/Kurzbefehl-Automation.
+    // /api/track löst den Token serverseitig über das Admin SDK auf; Clients
+    // verwalten ausschließlich ihre eigenen Tokens (list nur mit uid-Filter).
+    match /automationTokens/{tokenId} {
+      allow get, list: if signedIn() && resource.data.uid == request.auth.uid;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'carId', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.carId is string
+        && request.auth.uid in get(/databases/$(database)/documents/cars/$(request.resource.data.carId)).data.members;
+
+      allow update: if false;
+
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // activeTrips/{token} (Zwischenstand laufender Fahrten) wird ausschließlich
+    // serverseitig über das Admin SDK genutzt und bleibt für Clients gesperrt.
 
     // Alles andere ist gesperrt
     match /{document=**} {

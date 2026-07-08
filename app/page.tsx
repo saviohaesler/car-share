@@ -86,6 +86,18 @@ const HELP_ITEMS = [
     ),
   },
   {
+    title: "Karte",
+    text: "Aufgezeichnete Strecken pro Person und der letzte bekannte Standort des Autos.",
+    iconBg: "bg-teal-50 dark:bg-teal-950/30",
+    iconColor: "text-teal-600 dark:text-teal-400",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+    ),
+  },
+  {
     title: "Einladen",
     text: "Über das Teilen-Symbol beim Auto einen Einladungslink kopieren (7 Tage gültig) und weitergeben.",
     iconBg: "bg-blue-50 dark:bg-blue-950/30",
@@ -134,6 +146,9 @@ export default function Home() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [isTogglingPush, setIsTogglingPush] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  // Auto-Tracking: carId -> Token-ID (Dokument-ID in automationTokens)
+  const [autoTokens, setAutoTokens] = useState<Record<string, string>>({});
+  const [autoTokenBusy, setAutoTokenBusy] = useState<string | null>(null);
   const { theme, toggleTheme } = useTheme();
   useViewportReset();
 
@@ -151,6 +166,76 @@ export default function Home() {
     })();
     return () => { cancelled = true; };
   }, [isProfileModalOpen]);
+
+  // Eigene Automations-Tokens laden, sobald das Profil-Modal geöffnet wird
+  useEffect(() => {
+    if (!isProfileModalOpen || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "automationTokens"), where("uid", "==", user.uid)));
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        snap.forEach((d) => {
+          const carId = d.data().carId;
+          if (typeof carId === "string") map[carId] = d.id;
+        });
+        setAutoTokens(map);
+      } catch (error) {
+        console.warn("Automations-Tokens konnten nicht geladen werden:", error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isProfileModalOpen, user]);
+
+  const automationUrl = (tokenId: string) =>
+    `${window.location.origin}/api/track?token=${tokenId}`;
+
+  const copyAutomationLink = async (tokenId: string) => {
+    const url = automationUrl(tokenId);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        alert("Tracking-Link kopiert! In SensorLogger als HTTP-Push-URL eintragen; für den Kurzbefehl beim Trennen \"&action=finish\" anhängen.");
+        return;
+      } catch (err) { console.error(err); }
+    }
+    window.prompt("Tracking-Link kopieren:", url);
+  };
+
+  const createAutomationToken = async (carId: string) => {
+    if (!user || autoTokenBusy) return;
+    setAutoTokenBusy(carId);
+    try {
+      const tokenRef = doc(collection(db, "automationTokens"));
+      await setDoc(tokenRef, { uid: user.uid, carId, createdAt: serverTimestamp() });
+      setAutoTokens((prev) => ({ ...prev, [carId]: tokenRef.id }));
+      await copyAutomationLink(tokenRef.id);
+    } catch (error) {
+      console.error(error);
+      alert("Tracking-Link konnte nicht erstellt werden. Bitte erneut versuchen.");
+    }
+    setAutoTokenBusy(null);
+  };
+
+  const deleteAutomationToken = async (carId: string) => {
+    const tokenId = autoTokens[carId];
+    if (!tokenId || autoTokenBusy) return;
+    if (!window.confirm("Tracking-Link wirklich löschen? Die Automation funktioniert danach nicht mehr.")) return;
+    setAutoTokenBusy(carId);
+    try {
+      await deleteDoc(doc(db, "automationTokens", tokenId));
+      setAutoTokens((prev) => {
+        const next = { ...prev };
+        delete next[carId];
+        return next;
+      });
+    } catch (error) {
+      console.error(error);
+      alert("Tracking-Link konnte nicht gelöscht werden. Bitte erneut versuchen.");
+    }
+    setAutoTokenBusy(null);
+  };
 
   const toggleNotifications = async () => {
     if (!user || isTogglingPush) return;
@@ -280,7 +365,7 @@ export default function Home() {
       try {
         // Firestore doesn't automatically delete subcollections - remove logs and
         // reservations first, otherwise orphaned data remains.
-        for (const sub of ["logs", "reservations", "pushSubscriptions"]) {
+        for (const sub of ["logs", "reservations", "pushSubscriptions", "routes"]) {
           const snap = await getDocs(collection(db, "cars", editCarData.id, sub));
           const docs = snap.docs;
           for (let i = 0; i < docs.length; i += 100) {
@@ -462,7 +547,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2.5rem] shadow-2xl w-full max-w-sm text-gray-900 dark:text-white border border-gray-100 dark:border-zinc-800">
             <h2 className="text-xl font-black mb-6 uppercase italic text-center text-black dark:text-white">Profil</h2>
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 max-h-[70vh] overflow-y-auto custom-scrollbar pr-1">
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Anzeigename</label>
                 <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={100} className="w-full p-4 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border-2 border-gray-200 dark:border-zinc-800/80 font-black text-gray-900 dark:text-white mt-2 outline-none focus:border-blue-500 transition-colors shadow-sm" />
@@ -515,6 +600,50 @@ export default function Home() {
                     Auf dem iPhone: In Safari über „Teilen“ → „Zum Home-Bildschirm“ installieren und die App von dort öffnen.
                   </p>
                 )}
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Auto-Tracking</label>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 mt-1 ml-1 leading-relaxed">
+                  Persönlicher Link pro Auto für die automatische Fahrterfassung (SensorLogger + Kurzbefehle).
+                </p>
+                <div className="flex flex-col gap-2 mt-2">
+                  {cars.length === 0 && (
+                    <p className="text-[10px] font-bold text-gray-300 dark:text-zinc-600 uppercase ml-1">Noch keine Autos</p>
+                  )}
+                  {cars.map((car) => (
+                    <div key={car.id} className="flex justify-between items-center gap-2 bg-gray-50 dark:bg-zinc-800/40 p-3 rounded-2xl border border-gray-100 dark:border-zinc-800/80">
+                      <span className="text-sm font-bold text-gray-750 dark:text-zinc-300 truncate">{car.name}</span>
+                      {autoTokens[car.id] ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => copyAutomationLink(autoTokens[car.id])}
+                            className="text-[10px] bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-black uppercase border border-blue-200 dark:border-blue-900/40 active:scale-95 transition"
+                          >
+                            Link kopieren
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteAutomationToken(car.id)}
+                            disabled={autoTokenBusy === car.id}
+                            className="text-[10px] bg-red-50 dark:bg-red-950/20 text-red-500 dark:text-red-400 px-3 py-1.5 rounded-lg font-black uppercase border border-red-100 dark:border-red-900/30 active:scale-95 transition disabled:opacity-50"
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => createAutomationToken(car.id)}
+                          disabled={autoTokenBusy === car.id}
+                          className="text-[10px] bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 px-3 py-1.5 rounded-lg font-black uppercase active:scale-95 transition shrink-0 disabled:opacity-50"
+                        >
+                          {autoTokenBusy === car.id ? "Erstellt..." : "Link erstellen"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="flex flex-col gap-2">
                 <button onClick={saveProfile} disabled={isSavingProfile} className="bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition uppercase italic disabled:opacity-50">{isSavingProfile ? "Speichert..." : "Speichern"}</button>

@@ -22,6 +22,7 @@ export default function CarLayout({
 
   const isLogActive = pathname?.endsWith("/log");
   const isCalendarActive = pathname?.endsWith("/calendar");
+  const isMapActive = pathname?.endsWith("/map");
   const isStatsActive = pathname?.endsWith("/stats");
 
   return (
@@ -79,8 +80,25 @@ export default function CarLayout({
           <span className={`text-[10px] uppercase tracking-widest ${isCalendarActive ? "font-black" : "font-bold"}`}>Kalender</span>
         </Link>
 
-        <Link 
-          href={`/${resolvedParams.id}/stats`} 
+        <Link
+          href={`/${resolvedParams.id}/map`}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition ${
+            isMapActive
+              ? "text-blue-600 dark:text-blue-400 font-black"
+              : "text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300"
+          }`}
+        >
+          <div className="w-6 h-6 flex items-center justify-center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>
+          <span className={`text-[10px] uppercase tracking-widest ${isMapActive ? "font-black" : "font-bold"}`}>Karte</span>
+        </Link>
+
+        <Link
+          href={`/${resolvedParams.id}/stats`}
           className={`flex-1 flex flex-col items-center justify-center gap-1 active:opacity-40 transition ${
             isStatsActive 
               ? "text-blue-600 dark:text-blue-400 font-black" 

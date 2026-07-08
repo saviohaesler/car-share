@@ -21,6 +21,9 @@ export interface DriveLog {
   type?: "drive" | "fuel";
   fuelAmount?: number;
   fuelDetails?: FuelDetail[];
+  // "auto" = über /api/track automatisch erfasste Fahrt (GPS); der Fahrer darf
+  // den End-KM-Stand nachträglich korrigieren
+  source?: string;
 }
 
 // Formatiert KM-Stände mit Schweizer Tausendertrennzeichen (12'345)

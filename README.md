@@ -54,9 +54,18 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:you@example.com
+
+# Automatic trip tracking (optional) — Firebase service account JSON
+# (Project settings → Service accounts → Generate new private key).
+# Paste the JSON as one line, or base64-encoded.
+FIREBASE_SERVICE_ACCOUNT=
 ```
 
-The Firebase values come from the web app config in your Firebase project settings. The VAPID key pair signs the Web Push messages sent by the `/api/notify` route handler; keep `VAPID_PRIVATE_KEY` secret.
+The Firebase values come from the web app config in your Firebase project settings. The VAPID key pair signs the Web Push messages sent by the `/api/notify` route handler; keep `VAPID_PRIVATE_KEY` secret. `FIREBASE_SERVICE_ACCOUNT` is only needed for the automatic trip tracking endpoint (`/api/track`), which writes trip logs server-side.
+
+### Automatic trip tracking (GPS)
+
+Each member can generate a personal tracking link per car under **Profile → Auto-Tracking**. Combined with the [Sensor Logger](https://apps.apple.com/app/sensor-logger/id1531582925) app and an iOS Shortcuts automation (start recording on CarPlay/Bluetooth connect, stop + call the link with `&action=finish` on disconnect), trips are recorded via GPS and logged automatically for the right driver. The driver gets a push notification to verify and can correct the end odometer with +/- in the trip detail view.
 
 ### Push notifications
 
