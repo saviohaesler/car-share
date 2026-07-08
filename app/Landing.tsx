@@ -242,16 +242,6 @@ export default function Landing() {
 
         </div>
 
-        {/* CTA */}
-        <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] shadow-xl dark:shadow-zinc-950/40 border border-gray-100 dark:border-zinc-800/80 text-center lg:max-w-xl lg:w-full lg:mx-auto">
-          <p className="text-gray-400 dark:text-zinc-500 font-bold mb-6 italic uppercase tracking-tighter">
-            Bereit für die Fahrt?
-          </p>
-          <div className="lg:max-w-sm lg:mx-auto">
-            <GoogleButton />
-          </div>
-        </div>
-
         <p className="text-center text-[10px] font-bold text-gray-300 dark:text-zinc-600 uppercase tracking-widest">
           CarShare · Fahrtenbuch für geteilte Autos
         </p>
