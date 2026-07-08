@@ -235,7 +235,7 @@ export default function Home() {
     const url = automationUrl(tokenId);
     const copied = await copyToClipboard(url);
     if (copied) {
-      alert("Tracking-Link kopiert! In SensorLogger als HTTP-Push-URL eintragen; für den Kurzbefehl beim Trennen \"&action=finish\" anhängen.");
+      alert("Tracking-Link kopiert! Kann nun in SensorLogger und in die Kurzbefehle eingefügt werden.");
     } else {
       window.prompt("Tracking-Link kopieren:", url);
     }
@@ -251,7 +251,7 @@ export default function Home() {
     
     const copied = await copyToClipboard(url);
     if (copied) {
-      alert("Tracking-Link kopiert! In SensorLogger als HTTP-Push-URL eintragen; für den Kurzbefehl beim Trennen \"&action=finish\" anhängen.");
+      alert("Tracking-Link kopiert! Kann nun in SensorLogger und in die Kurzbefehle eingefügt werden.");
     } else {
       window.prompt("Tracking-Link kopieren:", url);
     }
