@@ -199,14 +199,11 @@ service cloud.firestore {
                  && request.resource.data.fuelDetails.size() <= 100)
              );
 
-        // Manuelle Einträge bleiben unveränderlich. Einzige Ausnahme:
-        // Bei automatisch erfassten Fahrten (source == 'auto', via /api/track)
-        // darf der Fahrer den End-KM-Stand korrigieren, da die GPS-Distanz
-        // vom Tacho abweichen kann.
+        // Bei Fahrten (type == 'drive') darf der Fahrer den End-KM-Stand
+        // korrigieren. (Die Frontend-Logik erlaubt dies nur für die neueste Fahrt).
         allow update: if isCarMember()
           && resource.data.userId == request.auth.uid
           && resource.data.type == 'drive'
-          && resource.data.source == 'auto'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['km'])
           && request.resource.data.km is number
           && request.resource.data.km >= resource.data.startKm;

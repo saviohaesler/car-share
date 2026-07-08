@@ -503,11 +503,17 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                         {editingLog.type === 'fuel' ? 'Tankbeleg' : 'Details'}
                     </h2>
                     <div className="flex flex-col gap-4 overflow-y-auto max-h-[70vh] px-1 text-left">
-                        <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-zinc-800/80">
-                            <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: userProfiles[editingLog.userId]?.color || editingLog.userColor || "#ccc" }}></div>
-                                <span className="font-black text-sm">{userProfiles[editingLog.userId]?.displayName || editingLog.userName}</span>
+                        <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex flex-col gap-2 border border-gray-100 dark:border-zinc-800/80">
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: userProfiles[editingLog.userId]?.color || editingLog.userColor || "#ccc" }}></div>
+                                    <span className="font-black text-sm">{userProfiles[editingLog.userId]?.displayName || editingLog.userName}</span>
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center border-t border-gray-200 dark:border-zinc-700/50 pt-2">
+                                <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Zeitpunkt</span>
+                                <span className="font-black text-sm text-gray-800 dark:text-zinc-200">{editingLog.timestamp?.toDate().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr</span>
                             </div>
                         </div>
 
