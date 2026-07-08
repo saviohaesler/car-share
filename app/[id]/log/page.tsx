@@ -554,8 +554,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
                                     )}
                                 </div>
 
-                                {/* KM-Korrektur: nur eigene, automatisch erfasste Fahrten, wenn es die letzte ist */}
-                                {editingLog.source === 'auto' && editingLog.userId === user.uid && logs[0]?.id === editingLog.id && (
+                                {/* KM-Korrektur: nur eigene Fahrten, wenn es die letzte ist */}
+                                {editingLog.userId === user.uid && logs[0]?.id === editingLog.id && (
                                     <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/80 rounded-2xl p-4 shadow-sm">
                                         <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-3 ml-1">Ende-KM korrigieren</p>
                                         <div className="flex items-center gap-2">
