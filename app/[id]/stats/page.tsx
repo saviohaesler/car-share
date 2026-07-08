@@ -9,6 +9,7 @@ import { useUserProfiles } from "../../../lib/useUserProfiles";
 import { useTheme } from "../../../lib/useTheme";
 import { ensureUserProfile } from "../../../lib/userProfile";
 import { DriveLog, formatKm, buildUidResolver } from "../../../lib/logs";
+import * as XLSX from 'xlsx';
 
 const MONTHS_DE = [
   "Januar", "Februar", "März", "April", "Mai", "Juni",
@@ -144,6 +145,69 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   const displayNameFor = (uid: string | undefined, fallback: string) =>
     (uid && userProfiles[uid]?.displayName) || fallback;
+
+  const exportToExcel = () => {
+    if (!filteredLogs || filteredLogs.length === 0) {
+      alert("Keine Daten zum Exportieren in diesem Zeitraum.");
+      return;
+    }
+
+    const exportData = filteredLogs.map(log => {
+      const dateStr = log.timestamp ? log.timestamp.toDate().toLocaleString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' }) : "";
+      
+      if (log.type === 'fuel') {
+        let detailsStr = "";
+        if (log.fuelDetails) {
+          detailsStr = log.fuelDetails.map(d => {
+            const resolvedId = resolveUid(d.userId, d.name);
+            const dName = resolvedId ? userProfiles[resolvedId]?.displayName : d.name;
+            return `${dName || d.name}: ${formatKm(d.dist)}km (${d.debt.toFixed(2)}.-)`;
+          }).join(" | ");
+        }
+        return {
+          'Datum': dateStr,
+          'Typ': 'Tankbeleg',
+          'Fahrer / Ersteller': displayNameFor(log.userId, log.userName),
+          'Start KM': '',
+          'Ende KM': '',
+          'Gefahrene KM': '',
+          'Betrag (CHF)': log.fuelAmount?.toFixed(2) || '',
+          'Aufteilung': detailsStr
+        };
+      } else {
+        const dist = log.startKm && log.km ? log.km - log.startKm : 0;
+        const uid = resolveUid(log.userId, log.userName);
+        return {
+          'Datum': dateStr,
+          'Typ': 'Fahrt',
+          'Fahrer / Ersteller': displayNameFor(uid, log.userName),
+          'Start KM': log.startKm || '',
+          'Ende KM': log.km || '',
+          'Gefahrene KM': dist,
+          'Betrag (CHF)': '',
+          'Aufteilung': ''
+        };
+      }
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Protokoll");
+    
+    worksheet['!cols'] = [
+      {wch: 18}, // Datum
+      {wch: 12}, // Typ
+      {wch: 20}, // Fahrer
+      {wch: 10}, // Start KM
+      {wch: 10}, // Ende KM
+      {wch: 15}, // Gefahrene KM
+      {wch: 15}, // Betrag
+      {wch: 60}  // Aufteilung
+    ];
+
+    const timeLabel = timeRange === "1m" ? "1_Monat" : timeRange === "3m" ? "3_Monate" : timeRange === "6m" ? "6_Monate" : timeRange === "12m" ? "12_Monate" : "Gesamt";
+    XLSX.writeFile(workbook, `Fahrten_${carName.replace(/\s+/g, '_')}_${timeLabel}.xlsx`);
+  };
 
   // Aggregated Stats Calculations
   let totalDistance = 0;
@@ -374,6 +438,14 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
             <span className="font-black text-black dark:text-zinc-100 text-sm italic uppercase">{getRangeLabel()}</span>
           </div>
         )}
+
+        {/* EXPORT EXCEL */}
+        <div className="flex justify-end mb-6">
+          <button onClick={exportToExcel} className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-black text-[10px] px-4 py-2.5 rounded-xl active:scale-95 transition flex items-center justify-center gap-2 border border-green-200 dark:border-green-800/50 uppercase tracking-widest shadow-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Excel Export
+          </button>
+        </div>
 
         {/* OVERVIEW METRIC CARDS */}
         <div className="grid grid-cols-2 gap-4 mb-6">
