@@ -784,7 +784,7 @@ export default function Home() {
                 <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3 leading-relaxed">Diese zwei Kurzbefehle steuern die App automatisch (beim Import des Stop-Befehls deinen Tracking-Link einfügen):</p>
                 <div className="flex gap-2">
                   <a href="https://www.icloud.com/shortcuts/1113098737aa4ce98a247b50d8c37406" target="_blank" rel="noopener noreferrer" className="flex-1 text-center bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-2 rounded-lg text-[10px] font-bold uppercase transition active:scale-95 border border-blue-100 dark:border-blue-900/40">Start Kurzbefehl</a>
-                  <a href="https://www.icloud.com/shortcuts/8e8cb1a0f97a4eb6b6c76b5aa8109ccc" target="_blank" rel="noopener noreferrer" className="flex-1 text-center bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-2 rounded-lg text-[10px] font-bold uppercase transition active:scale-95 border border-blue-100 dark:border-blue-900/40">Stop Kurzbefehl</a>
+                  <a href="https://www.icloud.com/shortcuts/1ad08c83b9014e7495990fcae9e0adb7" target="_blank" rel="noopener noreferrer" className="flex-1 text-center bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-2 rounded-lg text-[10px] font-bold uppercase transition active:scale-95 border border-blue-100 dark:border-blue-900/40">Stop Kurzbefehl</a>
                 </div>
                 <p className="text-[10px] text-orange-500 dark:text-orange-400 mt-3 leading-relaxed"><b>Wichtig:</b> Führe beide Kurzbefehle danach einmal manuell in der Kurzbefehle-App aus und wähle "Immer erlauben", damit sie Rechte bekommen.</p>
               </div>
