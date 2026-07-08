@@ -183,7 +183,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
       const color = userProfiles[r.userId]?.color || "#3b82f6";
       const line = L.polyline(r.points, { color, weight: 4, opacity: 0.85 });
       const name = userProfiles[r.userId]?.displayName || "Unbekannt";
-      const dateStr = r.date ? r.date.toLocaleDateString("de-DE") : "";
+      const dateStr = r.date ? r.date.toLocaleString("de-DE", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + " Uhr" : "";
       line.bindPopup(
         `<b>${name}</b><br>${dateStr} · ${formatKm(Math.round(r.distanceMeters / 1000))} km`
       );
