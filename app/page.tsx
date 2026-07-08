@@ -98,6 +98,21 @@ const HELP_ITEMS = [
     ),
   },
   {
+    title: "Auto-Tracking",
+    text: "Fahrten automatisch im Hintergrund aufzeichnen. In den Einstellungen aktivierbar.",
+    actionId: "openProfile",
+    iconBg: "bg-indigo-50 dark:bg-indigo-950/30",
+    iconColor: "text-indigo-600 dark:text-indigo-400",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    ),
+  },
+  {
     title: "Einladen",
     text: "Über das Teilen-Symbol beim Auto einen Einladungslink kopieren (7 Tage gültig) und weitergeben.",
     iconBg: "bg-blue-50 dark:bg-blue-950/30",
@@ -563,6 +578,9 @@ export default function Home() {
                   <div className="flex flex-col text-left">
                     <span className="font-black text-gray-800 dark:text-zinc-100 text-xs uppercase italic tracking-tight">{item.title}</span>
                     <span className="text-xs font-bold text-gray-400 dark:text-zinc-500 mt-0.5 leading-relaxed">{item.text}</span>
+                    {(item as any).actionId === "openProfile" && (
+                       <button onClick={() => { setIsHelpModalOpen(false); setIsProfileModalOpen(true); }} className="mt-2 text-[10px] bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg font-black uppercase w-fit active:scale-95 transition">Zu den Einstellungen</button>
+                    )}
                   </div>
                 </div>
               ))}
