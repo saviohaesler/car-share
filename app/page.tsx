@@ -191,29 +191,61 @@ export default function Home() {
   const automationUrl = (tokenId: string) =>
     `${window.location.origin}/api/track?token=${tokenId}`;
 
-  const copyAutomationLink = async (tokenId: string) => {
-    const url = automationUrl(tokenId);
+  const copyToClipboard = async (text: string) => {
+    let copied = false;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
-        await navigator.clipboard.writeText(url);
-        alert("Tracking-Link kopiert! In SensorLogger als HTTP-Push-URL eintragen; für den Kurzbefehl beim Trennen \"&action=finish\" anhängen.");
-        return;
-      } catch (err) { console.error(err); }
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      } catch (err) { console.error("Clipboard API failed", err); }
     }
-    window.prompt("Tracking-Link kopieren:", url);
+    if (!copied) {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copied = document.execCommand('copy');
+        textArea.remove();
+      } catch (e) { console.error("execCommand failed", e); }
+    }
+    return copied;
+  };
+
+  const copyAutomationLink = async (tokenId: string) => {
+    const url = automationUrl(tokenId);
+    const copied = await copyToClipboard(url);
+    if (copied) {
+      alert("Tracking-Link kopiert! In SensorLogger als HTTP-Push-URL eintragen; für den Kurzbefehl beim Trennen \"&action=finish\" anhängen.");
+    } else {
+      window.prompt("Tracking-Link kopieren:", url);
+    }
   };
 
   const createAutomationToken = async (carId: string) => {
     if (!user || autoTokenBusy) return;
     setAutoTokenBusy(carId);
+    
+    // Generiere ID synchron VOR dem Await, damit das Kopieren auf iOS nicht blockiert wird
+    const tokenRef = doc(collection(db, "automationTokens"));
+    const url = automationUrl(tokenRef.id);
+    
+    const copied = await copyToClipboard(url);
+    if (copied) {
+      alert("Tracking-Link kopiert! In SensorLogger als HTTP-Push-URL eintragen; für den Kurzbefehl beim Trennen \"&action=finish\" anhängen.");
+    } else {
+      window.prompt("Tracking-Link kopieren:", url);
+    }
+
     try {
-      const tokenRef = doc(collection(db, "automationTokens"));
       await setDoc(tokenRef, { uid: user.uid, carId, createdAt: serverTimestamp() });
       setAutoTokens((prev) => ({ ...prev, [carId]: tokenRef.id }));
-      await copyAutomationLink(tokenRef.id);
     } catch (error) {
       console.error(error);
-      alert("Tracking-Link konnte nicht erstellt werden. Bitte erneut versuchen.");
+      alert("Tracking-Link konnte nicht in der Datenbank gespeichert werden.");
     }
     setAutoTokenBusy(null);
   };
@@ -385,8 +417,17 @@ export default function Home() {
     e.preventDefault(); e.stopPropagation();
     if (!user) return;
 
-    // Random, 7-day valid invitation token instead of the guessable Car-ID
+    // Generiere Token-ID synchron VOR dem Await, damit iOS Safari das Clipboard nicht blockiert
     const inviteRef = doc(collection(db, "invites"));
+    const inviteLink = `${window.location.origin}/invite/${inviteRef.id}`;
+
+    const copied = await copyToClipboard(inviteLink);
+    if (copied) {
+      alert("Einladungslink kopiert! Der Link ist 7 Tage gültig.");
+    } else {
+      window.prompt("Link kopieren (7 Tage gültig):", inviteLink);
+    }
+
     try {
       await setDoc(inviteRef, {
         carId: car.id,
@@ -398,19 +439,7 @@ export default function Home() {
     } catch (err) {
       console.error(err);
       alert("Einladung konnte nicht erstellt werden.");
-      return;
     }
-    const inviteLink = `${window.location.origin}/invite/${inviteRef.id}`;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        await navigator.clipboard.writeText(inviteLink);
-        alert("Einladungslink kopiert! Der Link ist 7 Tage gültig.");
-        return;
-      } catch (err) { console.error(err); }
-    }
-    // Fallback for In-App Browser
-    window.prompt("Link kopieren (7 Tage gültig):", inviteLink);
   };
 
   const removeMember = async (carId: string, memberId: string) => {
