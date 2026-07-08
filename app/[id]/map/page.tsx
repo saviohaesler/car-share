@@ -118,7 +118,13 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   // Karte initialisieren
   useEffect(() => {
     if (!L || !containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false });
+    const map = L.map(containerRef.current, { 
+      zoomControl: false, 
+      attributionControl: false,
+      dragging: false,
+      touchZoom: false,
+      scrollWheelZoom: false
+    });
     map.setView([46.8, 8.2], 8); // Schweiz als Ausgangsansicht
     mapRef.current = map;
     setTimeout(() => map.invalidateSize(), 100);
@@ -314,15 +320,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
           )}
         </div>
 
-        {/* ZUSAMMENFASSUNG */}
-        {visibleRoutes.length > 0 && (
-          <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800/80 mt-4 text-center shrink-0">
-            <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">
-              {visibleRoutes.length} {visibleRoutes.length === 1 ? "Strecke" : "Strecken"} ·{" "}
-              {formatKm(Math.round(visibleRoutes.reduce((sum, r) => sum + r.distanceMeters, 0) / 1000))} km
-            </span>
-          </div>
-        )}
+
       </div>
     </main>
   );
