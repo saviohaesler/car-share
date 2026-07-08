@@ -75,18 +75,6 @@ const FEATURES = [
     ),
   },
   {
-    title: "Karte",
-    text: "Aufgezeichnete Strecken pro Person und der letzte bekannte Standort des Autos im Überblick.",
-    iconBg: "bg-teal-50 dark:bg-teal-950/30",
-    iconColor: "text-teal-600 dark:text-teal-400",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-        <circle cx="12" cy="10" r="3"></circle>
-      </svg>
-    ),
-  },
-  {
     title: "Auto-Tracking",
     text: "Das Auto zeichnet automatisch alle Fahrten im Hintergrund auf – kein manuelles Eintragen mehr nötig.",
     iconBg: "bg-indigo-50 dark:bg-indigo-950/30",
@@ -97,6 +85,18 @@ const FEATURES = [
         <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
         <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
         <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    ),
+  },
+  {
+    title: "Karte",
+    text: "Aufgezeichnete Strecken pro Person und der letzte bekannte Standort des Autos im Überblick.",
+    iconBg: "bg-teal-50 dark:bg-teal-950/30",
+    iconColor: "text-teal-600 dark:text-teal-400",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
       </svg>
     ),
   },
