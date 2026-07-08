@@ -455,8 +455,8 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
         {/* MODAL TANKEN */}
         {isFuelModalOpen && (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-200">
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] w-full max-w-sm border border-gray-100 dark:border-zinc-800 shadow-2xl">
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 pb-[calc(4rem+env(safe-area-inset-bottom)+1rem)] animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] w-full max-w-sm text-zinc-900 dark:text-zinc-100 border border-gray-100 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col gap-6">
                     <h2 className="text-xl font-black mb-4 text-center italic uppercase tracking-tighter text-black dark:text-white">Tanken</h2>
                     {!fuelSummary ? (
                         <form onSubmit={handleFuelSubmit} className="flex flex-col gap-4">
@@ -497,13 +497,13 @@ export default function DriveLogPage({ params }: { params: Promise<{ id: string 
 
         {/* MODAL DETAIL / EDIT */}
         {isModalOpen && editingLog && (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] w-full max-w-sm text-zinc-900 dark:text-zinc-100 border border-gray-100 dark:border-zinc-800 shadow-2xl overflow-hidden">
-                    <h2 className="text-xl font-black mb-6 text-center italic uppercase tracking-tighter text-black dark:text-white">
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 pb-[calc(4rem+env(safe-area-inset-bottom)+1rem)] animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] w-full max-w-sm text-zinc-900 dark:text-zinc-100 border border-gray-100 dark:border-zinc-800 shadow-2xl flex flex-col max-h-full overflow-hidden">
+                    <h2 className="text-xl font-black mb-6 shrink-0 text-center italic uppercase tracking-tighter text-black dark:text-white">
                         {editingLog.type === 'fuel' ? 'Tankbeleg' : 'Details'}
                     </h2>
-                    <div className="flex flex-col gap-4 overflow-y-auto max-h-[85vh] px-1 text-left">
-                        <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 rounded-xl flex flex-col gap-2 border border-gray-100 dark:border-zinc-800/80">
+                    <div className="flex flex-col gap-4 overflow-y-auto flex-1 min-h-0 px-1 pb-2 text-left custom-scrollbar">
+                        <div className="bg-gray-100 dark:bg-zinc-800/40 p-3 shrink-0 rounded-xl flex flex-col gap-2 border border-gray-100 dark:border-zinc-800/80">
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest">Ersteller</span>
                                 <div className="flex items-center gap-2">
