@@ -633,7 +633,7 @@ export default function Home() {
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase ml-1">Auto-Tracking</label>
                 <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 mt-1 ml-1 leading-relaxed">
-                  Persönlicher Link pro Auto für die automatische Fahrterfassung (SensorLogger + Kurzbefehle).
+                  Persönlicher Link pro Auto für die automatische Fahrterfassung (SensorLogger + <a href="https://www.icloud.com/shortcuts/1e0fcec1a8d5421e8760116558fffddc" target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 underline">Kurzbefehle</a>).
                 </p>
                 <div className="flex flex-col gap-2 mt-2">
                   {cars.length === 0 && (
